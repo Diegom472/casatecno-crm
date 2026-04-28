@@ -409,7 +409,7 @@ textarea.form-input{resize:vertical;min-height:60px;}
       <button class="btn btn-blue" onclick="openCargarDocumento()">📎 Cargar Documento</button>
       <button class="btn btn-secondary" onclick="openIndexarDocumento()">🔗 Indexar</button>
       <button class="btn btn-secondary" onclick="buscarConFormularioActual()">🔍 Buscar Cliente</button>
-      <button class="btn btn-ghost" onclick="actualizarCliente()">✏️ Actualizar</button>
+      <button class="btn btn-ghost" onclick="actualizarCliente()">✏️ Actualizar datos</button>
       <button class="btn btn-success" onclick="guardarNuevoCliente()">＋ Guardar nuevo</button>
       <button class="btn" style="background:#f39c12;color:#fff;" onclick="openPedidoListo()">✅ Pedido Listo</button>
     </div>
@@ -1122,6 +1122,7 @@ textarea.form-input{resize:vertical;min-height:60px;}
     <label class="form-label">Tipo de documento</label>
     <select class="form-select" id="idx-tipo">
      <option value="Factura">Factura</option>
+     <option value="Transferencia">Transferencia</option>
      <option value="Presupuesto">Presupuesto</option>
      <option value="Remito">Remito</option>
      <option value="Otro">Otro</option>
@@ -1137,7 +1138,7 @@ textarea.form-input{resize:vertical;min-height:60px;}
    </div>
    <div class="form-group" style="margin-bottom:16px;">
     <label class="form-label">O subir archivo</label>
-    <input class="form-input" id="idx-file" type="file" accept=".pdf,.xlsx,.xls,.doc,.docx,.jpg,.png">
+    <input class="form-input" id="idx-file" type="file" accept=".pdf,.xlsx,.xls,.doc,.docx,.jpg,.jpeg,.png,.webp,.gif">
    </div>
    <div class="btn-row">
     <button class="btn btn-success" onclick="guardarIndexacion()">🔗 Indexar documento</button>
@@ -1684,12 +1685,12 @@ function guardarNuevoCliente(){
 }
 
 function actualizarCliente(){
-  if(!S.currentClienteId){ showToast('No hay cliente cargado','error'); return; }
+  if(!S.currentClienteId){ showToast('No hay cliente cargado — usá "Guardar nuevo" para crear uno','error'); return; }
   const d = getClienteData();
   if(!d.nombre){ showToast('El nombre es obligatorio','error'); return; }
   const idx = S.clientes.findIndex(c=>c.id===S.currentClienteId);
   if(idx>=0) S.clientes[idx]={id:S.currentClienteId,...d};
-  saveS(); showToast('✅ Cliente actualizado');
+  saveS(); showToast('✅ Datos del cliente actualizados');
 }
 
 function toggleDocTipo(){
@@ -2343,9 +2344,12 @@ function poblarSelectNotas(selectId, preselect){
   if(!sel) return;
   const notas = S.eventos
     .filter(e=>e.clienteId===S.currentClienteId&&(e.tipo==='COMPRA'||e.tipo==='SERVICIO'))
-    .slice().reverse(); // newest first (events are pushed in order)
+    .slice().reverse(); // newest first
   sel.innerHTML = '<option value="">— Seleccionar nota —</option>'+
-    notas.map(e=>`<option value="${e.id}">${e.tipo} · ${e.nombre} · ${e.fecha}${e.timestamp?' '+e.timestamp:''}</option>`).join('');
+    notas.map(e=>{
+      const ts = e.timestamp ? ` ${e.timestamp}` : '';
+      return `<option value="${e.id}">${e.tipo} · ${e.nombre} · ${e.fecha}${ts}</option>`;
+    }).join('');
   if(preselect) sel.value = preselect;
 }
 
@@ -2455,24 +2459,31 @@ function descargarComprobante(id){
 // Botón Indexar desde ficha de cliente (sin nota preseleccionada)
 function openIndexarDocumento(){
   if(!S.currentClienteId){ showToast('Cargá o guardá un cliente primero','error'); return; }
-  // Reset fields
-  ['idx-desc','idx-url'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['idx-desc','idx-url'].forEach(fid=>{const el=document.getElementById(fid);if(el)el.value='';});
   const fileEl=document.getElementById('idx-file'); if(fileEl) fileEl.value='';
   document.getElementById('idx-tipo').value='Factura';
-  switchDocTab('indexar');
+  // Show indexar panel directly
+  document.getElementById('doc-panel-cargar').style.display='none';
+  document.getElementById('doc-panel-indexar').style.display='';
+  document.getElementById('doc-tab-cargar').className='btn btn-sm btn-secondary';
+  document.getElementById('doc-tab-indexar').className='btn btn-sm btn-primary';
   openModal('modal-documento');
+  // Populate after modal is visible
+  setTimeout(()=>poblarSelectNotas('idx-nota-select'), 50);
 }
 
 // Botón Indexar desde modal de nota (preselecciona esa nota)
 function openIndexarDocumentoEnNota(notaId){
   if(!S.currentClienteId){ showToast('Cargá un cliente primero','error'); return; }
-  ['idx-desc','idx-url'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  ['idx-desc','idx-url'].forEach(fid=>{const el=document.getElementById(fid);if(el)el.value='';});
   const fileEl=document.getElementById('idx-file'); if(fileEl) fileEl.value='';
   document.getElementById('idx-tipo').value='Factura';
-  switchDocTab('indexar');
-  // Wait for poblarSelectNotas then preselect
-  setTimeout(()=>{ poblarSelectNotas('idx-nota-select', notaId); }, 50);
+  document.getElementById('doc-panel-cargar').style.display='none';
+  document.getElementById('doc-panel-indexar').style.display='';
+  document.getElementById('doc-tab-cargar').className='btn btn-sm btn-secondary';
+  document.getElementById('doc-tab-indexar').className='btn btn-sm btn-primary';
   openModal('modal-documento');
+  setTimeout(()=>poblarSelectNotas('idx-nota-select', notaId), 50);
 }
 
 function openCargarDocumento(){
