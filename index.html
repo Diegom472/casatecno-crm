@@ -407,6 +407,7 @@ textarea.form-input{resize:vertical;min-height:60px;}
       <button class="btn btn-secondary" onclick="openNuevoServicio()">🔧 Nuevo Servicio</button>
       <button class="btn btn-secondary" onclick="goTo('califica')">⭐ Calificación</button>
       <button class="btn btn-blue" onclick="openCargarDocumento()">📎 Cargar Documento</button>
+      <button class="btn btn-secondary" onclick="openIndexarDocumento()">🔗 Indexar</button>
       <button class="btn btn-secondary" onclick="buscarConFormularioActual()">🔍 Buscar Cliente</button>
       <button class="btn btn-ghost" onclick="actualizarCliente()">✏️ Actualizar</button>
       <button class="btn btn-success" onclick="guardarNuevoCliente()">＋ Guardar nuevo</button>
@@ -1396,6 +1397,10 @@ textarea.form-input{resize:vertical;min-height:60px;}
  </div>
 </div>
 
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
 <script>
 // ══════════════════════════════════════════════
 let S = {
@@ -1430,8 +1435,100 @@ let S = {
   retiraServ: 1,
 };
 
-function loadS(){ try{ const d=localStorage.getItem('ct_crm_v2'); if(d) Object.assign(S,JSON.parse(d)); } catch(e){} }
-function saveS(){ try{ localStorage.setItem('ct_crm_v2',JSON.stringify(S)); } catch(e){} }
+// ══════════════════════════════════════════════
+//  FIREBASE
+// ══════════════════════════════════════════════
+let db = null;
+const FB_DOC = 'casatecno/datos';
+
+function initFirebase(){
+  const cfg = S.firebaseConfig;
+  if(!cfg?.apiKey || !cfg?.projectId) return false;
+  try {
+    // Avoid re-initializing
+    if(!firebase.apps.length){
+      firebase.initializeApp({
+        apiKey:     cfg.apiKey,
+        authDomain: cfg.projectId+'.firebaseapp.com',
+        projectId:  cfg.projectId,
+        appId:      cfg.appId||''
+      });
+    }
+    db = firebase.firestore();
+    console.log('✅ Firebase conectado');
+    return true;
+  } catch(e){ console.error('Firebase init error:', e); return false; }
+}
+
+// Save: localStorage always + Firestore if connected
+function saveS(){
+  try{ localStorage.setItem('ct_crm_v2', JSON.stringify(S)); } catch(e){}
+  if(db){
+    // Split into smaller chunks to avoid Firestore 1MB limit
+    const payload = {
+      clientes:       JSON.stringify(S.clientes),
+      eventos:        JSON.stringify(S.eventos),
+      calificaciones: JSON.stringify(S.calificaciones),
+      userEvents:     JSON.stringify(S.userEvents||[]),
+      config: JSON.stringify({
+        predefinidos:   S.predefinidos,
+        negocio:        S.negocio,
+        logo:           S.logo,
+        adminUser:      S.adminUser,
+        adminPass:      S.adminPass,
+        users:          S.users,
+        driveUrl:       S.driveUrl,
+        driveHist:      S.driveHist,
+        driveLabel:     S.driveLabel,
+        notificaciones: S.notificaciones,
+        firebaseConfig: S.firebaseConfig,
+        emailjsPublicKey:  S.emailjsPublicKey,
+        emailjsServiceId:  S.emailjsServiceId,
+        emailjsTemplateId: S.emailjsTemplateId,
+        darkMode:       S.darkMode,
+      })
+    };
+    db.doc(FB_DOC).set(payload, {merge:true})
+      .catch(e=>console.error('Firestore save error:', e));
+  }
+}
+
+// Load: try Firestore first, fallback to localStorage
+async function loadS(){
+  // Always load localStorage first for instant display
+  try{
+    const d = localStorage.getItem('ct_crm_v2');
+    if(d) Object.assign(S, JSON.parse(d));
+  } catch(e){}
+
+  // Try Firebase
+  if(!initFirebase()) return;
+
+  try {
+    const doc = await db.doc(FB_DOC).get();
+    if(doc.exists){
+      const data = doc.data();
+      if(data.clientes)       S.clientes       = JSON.parse(data.clientes);
+      if(data.eventos)        S.eventos        = JSON.parse(data.eventos);
+      if(data.calificaciones) S.calificaciones = JSON.parse(data.calificaciones);
+      if(data.userEvents)     S.userEvents     = JSON.parse(data.userEvents);
+      if(data.config){
+        const cfg = JSON.parse(data.config);
+        Object.assign(S, cfg);
+      }
+      // Update localStorage with cloud data
+      localStorage.setItem('ct_crm_v2', JSON.stringify(S));
+      console.log('✅ Datos cargados desde Firebase');
+    } else {
+      // First time — push local data to Firebase
+      console.log('Firebase vacío — subiendo datos locales...');
+      saveS();
+    }
+  } catch(e){
+    console.error('Firestore load error:', e);
+    showToast('No se pudo conectar a Firebase. Usando datos locales.','error');
+  }
+}
 
 // ══════════════════════════════════════════════
 //  THEME
@@ -1518,6 +1615,16 @@ function fillNegocioAdmin(){
   setv('adm-tel',S.negocio.tel); setv('adm-mail',S.negocio.mail);
   setv('adm-dir',S.negocio.dir); setv('adm-loc',S.negocio.loc); setv('adm-cp',S.negocio.cp);
   if(S.driveUrl) setv('adm-drive-url', S.driveUrl);
+  if(S.firebaseConfig?.apiKey){
+    setv('fb-apikey', S.firebaseConfig.apiKey);
+    setv('fb-projectid', S.firebaseConfig.projectId);
+    setv('fb-appid', S.firebaseConfig.appId||'');
+    const statusEl = document.getElementById('firebase-status');
+    if(statusEl){
+      if(db){ statusEl.textContent='✅ Conectado'; statusEl.style.color='var(--green)'; }
+      else { statusEl.textContent='⚠ Config cargada'; }
+    }
+  }
   if(S.emailjsPublicKey){ setv('ejs-pubkey',S.emailjsPublicKey); setv('ejs-service',S.emailjsServiceId); setv('ejs-template',S.emailjsTemplateId); const el=document.getElementById('emailjs-status'); if(el) el.textContent='✅ Configurado'; }
 }
 
@@ -1724,6 +1831,7 @@ function verComprobante(id){
            <button class="btn btn-xs" style="background:var(--accent-dim);color:var(--accent);border:1px solid var(--accent);" onclick="desindexarPedidoListo('${pedidoListo.id}','${id}')">🔗 Desindexar</button>`
       }
       ${(()=>{ const idxCount = S.eventos.filter(e=>(e.tipo==='DOCUMENTO'&&e.data?.notaIndexada===id)||(e.tipo==='PEDIDO_LISTO'&&e.data?.notaId===id)).length; return idxCount>0?`<button class="btn btn-secondary btn-sm" onclick="verIndexaciones('${id}')">📎 Ver indexaciones (${idxCount})</button>`:''; })()}
+      <button class="btn btn-secondary btn-sm" onclick="closeModal('modal-ver-evento');openIndexarDocumentoEnNota('${id}')">🔗 Indexar</button>
       ${facturaDoc?`<button class="btn btn-secondary btn-sm" onclick="verComprobante('${facturaDoc.id}')">📄 Ver Factura</button>`:''}
       ${isEditado&&nuevoEv?`<button class="btn btn-primary btn-sm" onclick="closeModal('modal-ver-evento');verComprobante('${nuevoEv.id}')">Ver nuevo →</button>`:''}`;
 
@@ -2225,11 +2333,20 @@ function switchDocTab(tab){
   document.getElementById('doc-tab-cargar').className  = 'btn btn-sm '+(tab==='cargar' ?'btn-primary':'btn-secondary');
   document.getElementById('doc-tab-indexar').className = 'btn btn-sm '+(tab==='indexar'?'btn-primary':'btn-secondary');
   if(tab==='indexar' && S.currentClienteId){
-    const notas = S.eventos.filter(e=>e.clienteId===S.currentClienteId&&(e.tipo==='COMPRA'||e.tipo==='SERVICIO'));
-    const sel = document.getElementById('idx-nota-select');
-    sel.innerHTML = '<option value="">— Seleccionar nota —</option>'+
-      notas.map(e=>`<option value="${e.id}">${e.tipo} · ${e.nombre} (${e.fecha})</option>`).join('');
+    poblarSelectNotas('idx-nota-select');
   }
+}
+
+// Populates any nota select with timestamp, sorted newest first
+function poblarSelectNotas(selectId, preselect){
+  const sel = document.getElementById(selectId);
+  if(!sel) return;
+  const notas = S.eventos
+    .filter(e=>e.clienteId===S.currentClienteId&&(e.tipo==='COMPRA'||e.tipo==='SERVICIO'))
+    .slice().reverse(); // newest first (events are pushed in order)
+  sel.innerHTML = '<option value="">— Seleccionar nota —</option>'+
+    notas.map(e=>`<option value="${e.id}">${e.tipo} · ${e.nombre} · ${e.fecha}${e.timestamp?' '+e.timestamp:''}</option>`).join('');
+  if(preselect) sel.value = preselect;
 }
 
 // ══════════════════════════════════════════════
@@ -2246,7 +2363,7 @@ function guardarIndexacion(){
   S.eventos.push({
     id, clienteId:S.currentClienteId, tipo:'DOCUMENTO',
     nombre:`${tipo}: ${desc||tipo}`,
-    fecha:hoy(),
+    fecha:hoy(), timestamp:ahoraTimestamp(),
     data:{ docTipoLabel:tipo, desc, url, fileName:file?.name||'', notaIndexada:notaId }
   });
   saveS(); renderHistorial(); renderComprobantes();
@@ -2263,22 +2380,34 @@ function verIndexaciones(notaId){
     (e.tipo==='PEDIDO_LISTO'&&e.data?.notaId===notaId)
   );
   if(!indexados.length){ showToast('Sin indexaciones en esta nota'); return; }
-  let html = `<div style="font-size:13px;font-weight:600;margin-bottom:10px;">Documentos indexados:</div>`;
-  html += indexados.map(e=>`
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:var(--bg3);border-radius:var(--radius);margin-bottom:6px;">
-      <div>
-        <div style="font-weight:600;font-size:13px;">${e.tipo==='PEDIDO_LISTO'?'✅ Pedido Listo':e.nombre}</div>
-        <div style="font-size:11px;color:var(--text3);">${e.fecha}</div>
+  let html = `<div style="font-size:13px;font-weight:600;margin-bottom:10px;">Documentos indexados (${indexados.length}):</div>`;
+  html += indexados.slice().reverse().map(e=>{
+    const tieneArchivo = e.data?.url || e.data?.fileName;
+    const esListo = e.tipo==='PEDIDO_LISTO';
+    return `
+    <div style="padding:9px 10px;background:var(--bg3);border-radius:var(--radius);margin-bottom:7px;border:1px solid var(--border);">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+        <div style="flex:1;">
+          <div style="font-weight:600;font-size:13px;">${esListo?'✅ Pedido Listo':e.nombre}</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:2px;">${e.fecha}${e.timestamp?' · '+e.timestamp:''}</div>
+          ${e.data?.url?`<div style="font-size:11px;color:var(--blue);margin-top:2px;">🔗 Tiene archivo adjunto</div>`:''}
+          ${e.data?.fileName&&!e.data?.url?`<div style="font-size:11px;color:var(--text2);margin-top:2px;">📎 ${e.data.fileName}</div>`:''}
+        </div>
+        <div style="display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end;">
+          ${e.data?.url?`
+            <a href="${e.data.url}" target="_blank" class="btn btn-blue btn-xs">👁️ Ver</a>
+            <a href="${e.data.url}" target="_blank" download class="btn btn-secondary btn-xs">⬇️ Descargar</a>`:''}
+          ${esListo?`<button class="btn btn-secondary btn-xs" onclick="closeModal('modal-ver-evento');imprimirPedidoListo('${e.id}')">🖨️</button>`:''}
+          <button class="btn btn-xs" style="background:var(--accent-dim);color:var(--accent);border:1px solid var(--accent);"
+            onclick="desindexarUno('${e.id}','${notaId}')">✕ Quitar</button>
+        </div>
       </div>
-      <div style="display:flex;gap:5px;">
-        ${e.data?.url?`<a href="${e.data.url}" target="_blank" class="btn btn-blue btn-xs">🔗 Ver</a>`:''}
-        <button class="btn btn-xs" style="background:var(--accent-dim);color:var(--accent);border:1px solid var(--accent);" 
-          onclick="desindexarUno('${e.id}','${notaId}')">✕ Quitar</button>
-      </div>
-    </div>`).join('');
-  document.getElementById('ver-evento-title').innerHTML = `Indexaciones <button class="modal-close" onclick="closeModal('modal-ver-evento')">✕</button>`;
+    </div>`;
+  }).join('');
+  document.getElementById('ver-evento-title').innerHTML = `📎 Indexaciones <button class="modal-close" onclick="closeModal('modal-ver-evento')">✕</button>`;
   document.getElementById('ver-evento-body').innerHTML = html;
-  document.getElementById('ver-evento-btns').innerHTML = '';
+  document.getElementById('ver-evento-btns').innerHTML = `
+    <button class="btn btn-primary btn-sm" onclick="closeModal('modal-ver-evento');openIndexarDocumentoEnNota('${notaId}')">＋ Agregar indexación</button>`;
   openModal('modal-ver-evento');
 }
 
@@ -2323,6 +2452,29 @@ function descargarComprobante(id){
 // ══════════════════════════════════════════════
 //  CARGAR DOCUMENTO EXTERNO
 // ══════════════════════════════════════════════
+// Botón Indexar desde ficha de cliente (sin nota preseleccionada)
+function openIndexarDocumento(){
+  if(!S.currentClienteId){ showToast('Cargá o guardá un cliente primero','error'); return; }
+  // Reset fields
+  ['idx-desc','idx-url'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  const fileEl=document.getElementById('idx-file'); if(fileEl) fileEl.value='';
+  document.getElementById('idx-tipo').value='Factura';
+  switchDocTab('indexar');
+  openModal('modal-documento');
+}
+
+// Botón Indexar desde modal de nota (preselecciona esa nota)
+function openIndexarDocumentoEnNota(notaId){
+  if(!S.currentClienteId){ showToast('Cargá un cliente primero','error'); return; }
+  ['idx-desc','idx-url'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  const fileEl=document.getElementById('idx-file'); if(fileEl) fileEl.value='';
+  document.getElementById('idx-tipo').value='Factura';
+  switchDocTab('indexar');
+  // Wait for poblarSelectNotas then preselect
+  setTimeout(()=>{ poblarSelectNotas('idx-nota-select', notaId); }, 50);
+  openModal('modal-documento');
+}
+
 function openCargarDocumento(){
   if(!S.currentClienteId){ showToast('Cargá o guardá un cliente primero','error'); return; }
   document.getElementById('doc-tipo').value='Nota de Venta';
@@ -2563,7 +2715,7 @@ function guardarCompra(imprimir){
     if(orig) orig.editadoPor=id;
     document.getElementById('modal-compra').removeAttribute('data-editing');
   }
-  S.eventos.push({ id, clienteId:S.currentClienteId, tipo:'COMPRA', nombre:items[0].desc+(items.length>1?` +${items.length-1}`:''), fecha:hoy(), data, esEdicionDe:editingId||null });
+  S.eventos.push({ id, clienteId:S.currentClienteId, tipo:'COMPRA', nombre:items[0].desc+(items.length>1?` +${items.length-1}`:''), fecha:hoy(), timestamp:ahoraTimestamp(), data, esEdicionDe:editingId||null });
   saveS(); renderHistorial(); renderComprobantes();
   closeModal('modal-compra');
   showToast('✅ Compra guardada · '+id);
@@ -2612,7 +2764,7 @@ function guardarServicio(imprimir){
     if(orig) orig.editadoPor=id;
     document.getElementById('modal-servicio').removeAttribute('data-editing');
   }
-  S.eventos.push({ id, clienteId:S.currentClienteId, tipo:'SERVICIO', nombre:items.length?items[0].desc:(comps.length?comps[0].componente:'Servicio'), fecha:hoy(), data, esEdicionDe:editingId||null });
+  S.eventos.push({ id, clienteId:S.currentClienteId, tipo:'SERVICIO', nombre:items.length?items[0].desc:(comps.length?comps[0].componente:'Servicio'), fecha:hoy(), timestamp:ahoraTimestamp(), data, esEdicionDe:editingId||null });
   saveS(); renderHistorial(); renderComprobantes();
   closeModal('modal-servicio');
   showToast('✅ Servicio guardado · '+id);
@@ -3322,9 +3474,8 @@ function openPedidoListoDesdeNota(notaId){
     (e.tipo==='COMPRA'||e.tipo==='SERVICIO') &&
     !S.eventos.find(pl=>pl.tipo==='PEDIDO_LISTO'&&pl.data?.notaId===e.id)
   );
-  select.innerHTML = '<option value="">— Seleccionar nota —</option>' +
-    notas.map(e=>`<option value="${e.id}">${e.tipo} · ${e.id} · ${e.nombre} (${e.fecha})</option>`).join('');
-  if(notaId) select.value = notaId;
+  poblarSelectNotas('pl-nota-select');
+  if(notaId){ document.getElementById('pl-nota-select').value = notaId; document.getElementById('pl-nota-select').onchange(); }
   document.getElementById('pl-desc').value='';
   document.getElementById('pl-url').value='';
   document.getElementById('pl-file').value='';
@@ -3729,11 +3880,22 @@ function cambiarPassword(){
 }
 
 function guardarFirebase(){
-  const apikey=v('fb-apikey').trim(),pid=v('fb-projectid').trim();
+  const apikey=v('fb-apikey').trim(), pid=v('fb-projectid').trim();
   if(!apikey||!pid){ showToast('Completá API Key y Project ID','error'); return; }
-  S.firebaseConfig={apiKey:apikey,projectId:pid,appId:v('fb-appid').trim()};
-  saveS(); document.getElementById('firebase-status').textContent='⚠ Configurado (recargá para activar)';
-  showToast('✅ Configuración Firebase guardada');
+  S.firebaseConfig={ apiKey:apikey, projectId:pid, appId:v('fb-appid').trim() };
+  // Try to connect immediately
+  const ok = initFirebase();
+  const statusEl = document.getElementById('firebase-status');
+  if(ok){
+    statusEl.textContent='✅ Conectado';
+    statusEl.style.color='var(--green)';
+    saveS(); // This will now also save to Firestore
+    showToast('✅ Firebase conectado y sincronizando');
+  } else {
+    saveS(); // Save config to localStorage
+    statusEl.textContent='⚠ Config guardada — recargá para activar';
+    showToast('Config guardada. Recargá la página para activar Firebase.');
+  }
 }
 
 function guardarEmailJS(){
@@ -3978,11 +4140,13 @@ function checkComprobanteURL(){
 // ══════════════════════════════════════════════
 //  INIT
 // ══════════════════════════════════════════════
-document.addEventListener('DOMContentLoaded',()=>{
+document.addEventListener('DOMContentLoaded', async ()=>{
   // Check if this is a comprobante view request
+  loadS(); // sync load for comprobante check
   if(checkComprobanteURL()) return;
 
-  loadS();
+  // Full async load with Firebase
+  await loadS();
   applyTheme();
   // Enter en login
   document.getElementById('login-pass').addEventListener('keydown',e=>{ if(e.key==='Enter') doLogin(); });
