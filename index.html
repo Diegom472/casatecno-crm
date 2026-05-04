@@ -1482,6 +1482,7 @@ let S = {
   logo: null,
   adminUser: 'admin',
   adminPass: 'admin123',
+  adminPerfil: { nombre:'Administrador', email:'', wsp:'' },
   users: [{ id:'u1', nombre:'Administrador', email:'admin@casatecno.com', wsp:'', rol:'admin', user:'admin' }],
   driveUrl: '',
   driveHist: [],
@@ -1625,8 +1626,14 @@ function doLogin(){
 
 function loginOk(usr){
   S.currentUser = usr;
-  // Always store nombre completo for display in events
-  S.currentUser.nombreCompleto = usr.nombre || usr.user || 'Usuario';
+  // For admin master, load saved profile
+  if(usr.id==='admin' || usr.user===S.adminUser){
+    const p = S.adminPerfil||{};
+    S.currentUser.nombre = p.nombre||'Administrador';
+    S.currentUser.email  = p.email||'';
+    S.currentUser.wsp    = p.wsp||'';
+  }
+  S.currentUser.nombreCompleto = S.currentUser.nombre || usr.user || 'Usuario';
   document.getElementById('login-page').style.display='none';
   document.getElementById('app').style.display='flex';
   document.getElementById('topbar-user').textContent = '👤 '+S.currentUser.nombreCompleto;
@@ -2916,10 +2923,11 @@ function openMiSesion(){
   const isAdminMaster = (u.id==='admin'||u.user===S.adminUser);
   document.getElementById('mi-sesion-nombre-display').textContent =
     `Sesión activa: ${u.nombreCompleto||u.nombre} · Rol: ${u.rol||'admin'}`;
-  document.getElementById('ses-nombre').value = u.nombre||u.nombreCompleto||'';
-  document.getElementById('ses-email').value = u.email||'';
-  document.getElementById('ses-user').value = u.user||'';
-  document.getElementById('ses-wsp').value = u.wsp||'';
+  const perfil = (isAdminMaster && S.adminPerfil) ? S.adminPerfil : u;
+  document.getElementById('ses-nombre').value = perfil.nombre||u.nombreCompleto||'';
+  document.getElementById('ses-email').value  = perfil.email||u.email||'';
+  document.getElementById('ses-user').value   = u.user||'';
+  document.getElementById('ses-wsp').value    = perfil.wsp||u.wsp||'';
   document.getElementById('ses-pass-actual').value='';
   document.getElementById('ses-pass-nueva').value='';
   document.getElementById('ses-pass-nueva2').value='';
@@ -2958,6 +2966,8 @@ function guardarMiSesion(){
   if(isAdminMaster){
     S.adminUser = nuevoUser||S.adminUser;
     if(nuevaPass) S.adminPass = nuevaPass;
+    // Save profile data for admin master
+    S.adminPerfil = { nombre:nuevoNombre, email:nuevoEmail, wsp:nuevoWsp };
   } else {
     const idx = S.users.findIndex(x=>x.id===u.id);
     if(idx>=0){
@@ -3194,7 +3204,9 @@ function renderBalance(){
   const sucsFiltro = getSucursalesSeleccionadas();
   const eventos = S.eventos.filter(e=>{
     if(e.fecha !== fecha) return false;
-    if(e.esBorrador) return false; // borradores no cuentan
+    if(e.esBorrador) return false;
+    // Excluir notas que fueron editadas (reemplazadas por una nueva)
+    if(e.editadoPor) return false;
     if(sucsFiltro){
       const op = S.users.find(u=>(u.nombre===e.data?.creadoPor||u.nombreCompleto===e.data?.creadoPor));
       const suc = op?.sucursal||'';
