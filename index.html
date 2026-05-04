@@ -1504,7 +1504,6 @@ function initFirebase(){
   const cfg = S.firebaseConfig;
   if(!cfg?.apiKey || !cfg?.projectId) return false;
   try {
-    // Avoid re-initializing
     if(!firebase.apps.length){
       firebase.initializeApp({
         apiKey:     cfg.apiKey,
@@ -1514,7 +1513,33 @@ function initFirebase(){
       });
     }
     db = firebase.firestore();
-    console.log('✅ Firebase conectado');
+    // ── Sincronización en tiempo real ──
+    db.doc(FB_DOC).onSnapshot(doc=>{
+      if(!doc.exists) return;
+      // Only update if we're not currently editing (modal open)
+      const modalAbierto = document.querySelector('.modal-overlay.open');
+      if(modalAbierto) return;
+      const data = doc.data();
+      try{
+        if(data.clientes)       S.clientes       = JSON.parse(data.clientes);
+        if(data.eventos)        S.eventos        = JSON.parse(data.eventos);
+        if(data.calificaciones) S.calificaciones = JSON.parse(data.calificaciones);
+        if(data.userEvents)     S.userEvents     = JSON.parse(data.userEvents);
+        if(data.config){
+          const cfg2 = JSON.parse(data.config);
+          // Don't overwrite session-specific data
+          const keep = { currentUser:S.currentUser, darkMode:S.darkMode, compraItemN:S.compraItemN, servItemN:S.servItemN };
+          Object.assign(S, cfg2, keep);
+        }
+        localStorage.setItem('ct_crm_v2', JSON.stringify(S));
+        // Refresh visible data silently
+        if(S.currentClienteId){
+          const c = S.clientes.find(x=>x.id===S.currentClienteId);
+          if(c){ renderHistorial(); renderComprobantes(); }
+        }
+      } catch(e){ console.error('Firestore sync error:', e); }
+    }, err=>console.error('Firestore listener error:', err));
+    console.log('✅ Firebase conectado y escuchando cambios en tiempo real');
     return true;
   } catch(e){ console.error('Firebase init error:', e); return false; }
 }
