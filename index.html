@@ -260,6 +260,12 @@ textarea.form-input{resize:vertical;min-height:60px;}
 .admin-card-arrow.open{transform:rotate(180deg);}
 .admin-card-body{padding:18px;border-top:1px solid var(--border);display:none;}
 .admin-card-body.open{display:block;}
+
+/* ══ EYE TOGGLE ══ */
+.pass-wrap{position:relative;display:flex;align-items:center;}
+.pass-wrap .form-input{flex:1;padding-right:42px;}
+.eye-btn{position:absolute;right:10px;background:none;border:none;cursor:pointer;color:var(--text3);font-size:16px;padding:0;line-height:1;z-index:1;}
+.eye-btn:hover{color:var(--text);}
 </style>
 </head>
 <body>
@@ -275,7 +281,10 @@ textarea.form-input{resize:vertical;min-height:60px;}
     </div>
     <div class="form-group" style="margin-bottom:18px;">
       <label class="form-label">Contraseña</label>
-      <input class="form-input" id="login-pass" type="password" placeholder="••••••••">
+      <div class="pass-wrap">
+        <input class="form-input" id="login-pass" type="password" placeholder="••••••••">
+        <button class="eye-btn" type="button" onclick="toggleEye('login-pass',this)" tabindex="-1">👁️</button>
+      </div>
     </div>
     <button class="btn btn-primary" style="width:100%;margin-bottom:10px;" onclick="doLogin()">INGRESAR</button>
     <div style="text-align:center;">
@@ -289,13 +298,52 @@ textarea.form-input{resize:vertical;min-height:60px;}
   <div class="login-card">
     <div class="login-logo">CASA<span>TECNO</span></div>
     <div class="login-sub">Recuperar contraseña</div>
-    <p style="font-size:13px;color:var(--text2);margin-bottom:16px;text-align:center;">Ingresá tu email y recibirás instrucciones para restablecer tu contraseña.</p>
-    <div class="form-group" style="margin-bottom:16px;">
-      <label class="form-label">Email</label>
-      <input class="form-input" id="rec-email" type="email" placeholder="tu@email.com">
+
+    <!-- PASO 1: ingresar email -->
+    <div id="rec-paso1">
+      <p style="font-size:13px;color:var(--text2);margin-bottom:16px;text-align:center;">Ingresá el email asociado a tu cuenta.</p>
+      <div class="form-group" style="margin-bottom:16px;">
+        <label class="form-label">Email</label>
+        <input class="form-input" id="rec-email" type="email" placeholder="tu@email.com">
+      </div>
+      <div id="rec-error" style="display:none;color:var(--accent);font-size:12px;margin-bottom:10px;padding:8px 12px;background:var(--accent-dim);border-radius:var(--radius);"></div>
+      <button class="btn btn-primary" style="width:100%;margin-bottom:10px;" onclick="verificarEmailRecupero()">CONTINUAR</button>
     </div>
-    <button class="btn btn-primary" style="width:100%;margin-bottom:10px;" onclick="enviarRecupero()">ENVIAR INSTRUCCIONES</button>
-    <div style="text-align:center;"><button class="login-link" onclick="showLogin()">← Volver al login</button></div>
+
+    <!-- PASO 2: nueva contraseña -->
+    <div id="rec-paso2" style="display:none;">
+      <div style="text-align:center;margin-bottom:16px;padding:10px;background:var(--green-dim);border-radius:var(--radius);font-size:13px;color:var(--green);">
+        ✅ Email verificado. Ingresá tu nueva contraseña.
+      </div>
+      <div class="form-group" style="margin-bottom:12px;">
+        <label class="form-label">Nueva contraseña (mínimo 6 caracteres)</label>
+        <div class="pass-wrap">
+          <input class="form-input" id="rec-pass-nueva" type="password" placeholder="Nueva contraseña" oninput="validarPassRecupero()">
+          <button class="eye-btn" type="button" onclick="toggleEye('rec-pass-nueva',this)" tabindex="-1">👁️</button>
+        </div>
+      </div>
+      <div class="form-group" style="margin-bottom:12px;">
+        <label class="form-label">Repetir nueva contraseña</label>
+        <div class="pass-wrap">
+          <input class="form-input" id="rec-pass-nueva2" type="password" placeholder="Repetir contraseña" oninput="validarPassRecupero()">
+          <button class="eye-btn" type="button" onclick="toggleEye('rec-pass-nueva2',this)" tabindex="-1">👁️</button>
+        </div>
+      </div>
+      <div id="rec-pass-error" style="display:none;font-size:12px;margin-bottom:10px;padding:8px 12px;border-radius:var(--radius);"></div>
+      <button class="btn btn-primary" style="width:100%;margin-bottom:10px;" onclick="guardarNuevaPass()">GUARDAR NUEVA CONTRASEÑA</button>
+    </div>
+
+    <!-- PASO 3: éxito -->
+    <div id="rec-paso3" style="display:none;text-align:center;">
+      <div style="font-size:40px;margin-bottom:12px;">✅</div>
+      <div style="font-size:15px;font-weight:700;margin-bottom:8px;">¡Contraseña actualizada!</div>
+      <div style="font-size:13px;color:var(--text2);margin-bottom:20px;">Ya podés ingresar con tu nueva contraseña.</div>
+      <button class="btn btn-primary" style="width:100%;" onclick="showLogin()">IR AL LOGIN</button>
+    </div>
+
+    <div style="text-align:center;margin-top:12px;">
+      <button class="login-link" onclick="showLogin()">← Volver al login</button>
+    </div>
   </div>
 </div>
 
@@ -608,45 +656,63 @@ textarea.form-input{resize:vertical;min-height:60px;}
         <!-- TOTALES EN FILAS -->
         <div id="bal-totales" style="margin-bottom:16px;"></div>
 
-        <!-- SUCURSALES -->
-        <div style="margin-bottom:14px;">
-          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.7px;color:var(--text2);margin-bottom:8px;">Sucursal</div>
-          <div id="bal-sucursales-checks" style="display:flex;gap:10px;flex-wrap:wrap;"></div>
-        </div>
+        <!-- FILA: SUCURSALES + FECHA -->
+        <div style="display:grid;grid-template-columns:1fr auto;gap:14px;align-items:start;margin-bottom:16px;">
 
-        <!-- FECHA + BOTÓN HOY -->
-        <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px;">
-          <div class="form-group" style="flex:0 0 auto;">
-            <label class="form-label">Fecha seleccionada</label>
-            <input class="form-input" id="bal-fecha" type="date" onchange="renderBalance()" style="max-width:160px;">
+          <!-- SUCURSALES -->
+          <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:12px;">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.7px;color:var(--text2);margin-bottom:8px;">Sucursales</div>
+            <div id="bal-sucursales-checks" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
           </div>
-          <button class="btn btn-secondary btn-sm" style="margin-top:16px;" onclick="volverAHoy()">📅 Hoy</button>
+
+          <!-- FECHA -->
+          <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:12px;min-width:200px;">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.7px;color:var(--text2);margin-bottom:8px;">Fecha</div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input class="form-input" id="bal-fecha" type="date" onchange="renderBalance()" style="flex:1;">
+              <button class="btn btn-secondary btn-sm" onclick="volverAHoy()">📅 Hoy</button>
+            </div>
+          </div>
         </div>
 
-        <!-- HISTORIAL (izq) + OPERADORES (der) -->
-        <div style="display:grid;grid-template-columns:220px 1fr;gap:16px;min-height:300px;">
+        <!-- HISTORIAL (50%) + OPERADORES (50%) -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;min-height:380px;">
 
           <!-- HISTORIAL -->
-          <div>
-            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.7px;color:var(--text2);margin-bottom:8px;">Historial de días</div>
-            <div style="display:flex;gap:5px;margin-bottom:8px;">
+          <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:14px;display:flex;flex-direction:column;">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.7px;color:var(--text2);margin-bottom:10px;">📅 Historial de días</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px;">
               <div>
-                <div style="font-size:9px;color:var(--text3);margin-bottom:2px;">DESDE</div>
+                <div style="font-size:9px;color:var(--text3);margin-bottom:3px;">DESDE</div>
                 <input class="form-input" id="bal-hist-desde" type="date" style="font-size:11px;padding:5px 7px;" onchange="renderBalanceHistorial()">
               </div>
               <div>
-                <div style="font-size:9px;color:var(--text3);margin-bottom:2px;">HASTA</div>
+                <div style="font-size:9px;color:var(--text3);margin-bottom:3px;">HASTA</div>
                 <input class="form-input" id="bal-hist-hasta" type="date" style="font-size:11px;padding:5px 7px;" onchange="renderBalanceHistorial()">
               </div>
             </div>
-            <div id="bal-historial-lista" style="max-height:400px;overflow-y:auto;"></div>
+            <div id="bal-historial-lista" style="flex:1;overflow-y:auto;max-height:340px;"></div>
           </div>
 
           <!-- OPERADORES -->
-          <div>
-            <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.7px;color:var(--text2);margin-bottom:8px;" id="bal-detalle-titulo">Operadores — Hoy</div>
-            <div id="bal-operadores-lista"></div>
+          <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:14px;display:flex;flex-direction:column;">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.7px;color:var(--text2);margin-bottom:10px;" id="bal-detalle-titulo">👥 Operadores — Hoy</div>
+            <div id="bal-operadores-lista" style="flex:1;overflow-y:auto;max-height:340px;"></div>
           </div>
+        </div>
+
+        <!-- AGREGAR SUCURSAL -->
+        <div style="margin-top:14px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:14px;">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.7px;color:var(--text2);margin-bottom:10px;">🏢 Gestión de Sucursales</div>
+          <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-bottom:10px;">
+            <div class="form-group" style="flex:1;min-width:200px;margin-bottom:0;">
+              <label class="form-label">Nombre de la nueva sucursal</label>
+              <input class="form-input" id="nueva-sucursal-input" type="text" placeholder="Ej: Centro, Norte, Libertad...">
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="agregarSucursal()">＋ Agregar sucursal</button>
+          </div>
+          <!-- Lista de sucursales existentes -->
+          <div id="sucursales-lista" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
         </div>
 
       </div>
@@ -842,8 +908,8 @@ textarea.form-input{resize:vertical;min-height:60px;}
       </div>
       <div class="admin-card-body" id="body-pass">
         <div class="form-grid" style="max-width:380px;">
-          <div class="form-group"><label class="form-label">Nueva contraseña</label><input class="form-input" id="adm-newpass" type="password"></div>
-          <div class="form-group"><label class="form-label">Repetir</label><input class="form-input" id="adm-newpass2" type="password"></div>
+          <div class="form-group"><label class="form-label">Nueva contraseña</label><div class="pass-wrap"><input class="form-input" id="adm-newpass" type="password"><button class="eye-btn" type="button" onclick="toggleEye('adm-newpass',this)" tabindex="-1">👁️</button></div></div>
+          <div class="form-group"><label class="form-label">Repetir</label><div class="pass-wrap"><input class="form-input" id="adm-newpass2" type="password"><button class="eye-btn" type="button" onclick="toggleEye('adm-newpass2',this)" tabindex="-1">👁️</button></div></div>
         </div>
         <div class="btn-row"><button class="btn btn-secondary btn-sm" onclick="cambiarPassword()">💾 Cambiar</button></div>
       </div>
@@ -943,6 +1009,8 @@ textarea.form-input{resize:vertical;min-height:60px;}
     <span class="pago-label">ABONA</span>
     <input class="form-input" id="compra-abona" type="text" style="max-width:140px;" placeholder="0" oninput="calcFalta('compra')" onblur="fmtInputMiles(this,'compra')">
     <select class="form-select" id="compra-medioPago" style="max-width:140px;"><option>Efectivo</option><option>Transferencia</option><option>Dólares</option><option>Tarjeta</option><option>Crypto</option></select>
+    <button class="btn btn-secondary btn-sm" onclick="pagarPorcentaje('compra',100)" title="Completar con el total">100%</button>
+    <button class="btn btn-secondary btn-sm" onclick="pagarPorcentaje('compra',50)" title="Completar con la mitad">50%</button>
     <button class="btn btn-secondary btn-sm" onclick="togglePago2('compra')">＋ Pago 2</button>
    </div>
    <div id="pago2-compra-row" style="display:none;" class="pago-row">
@@ -1056,6 +1124,8 @@ textarea.form-input{resize:vertical;min-height:60px;}
     <span class="pago-label">ABONA</span>
     <input class="form-input" id="serv-abona" type="text" style="max-width:140px;" placeholder="0" oninput="calcFalta('serv')" onblur="fmtInputMiles(this,'serv')">
     <select class="form-select" id="serv-medioPago" style="max-width:140px;"><option>Efectivo</option><option>Transferencia</option><option>Dólares</option><option>Tarjeta</option><option>Crypto</option></select>
+    <button class="btn btn-secondary btn-sm" onclick="pagarPorcentaje('serv',100)" title="Completar con el total">100%</button>
+    <button class="btn btn-secondary btn-sm" onclick="pagarPorcentaje('serv',50)" title="Completar con la mitad">50%</button>
     <button class="btn btn-secondary btn-sm" onclick="togglePago2('serv')">＋ Pago 2</button>
    </div>
    <div id="pago2-serv-row" style="display:none;" class="pago-row">
@@ -1270,15 +1340,15 @@ textarea.form-input{resize:vertical;min-height:60px;}
   <div class="form-grid">
     <div class="form-group full">
       <label class="form-label">Contraseña actual (requerida para guardar cambios)</label>
-      <input class="form-input" id="ses-pass-actual" type="password">
+      <div class="pass-wrap"><input class="form-input" id="ses-pass-actual" type="password"><button class="eye-btn" type="button" onclick="toggleEye('ses-pass-actual',this)" tabindex="-1">👁️</button></div>
     </div>
     <div class="form-group">
       <label class="form-label">Nueva contraseña (opcional)</label>
-      <input class="form-input" id="ses-pass-nueva" type="password">
+      <div class="pass-wrap"><input class="form-input" id="ses-pass-nueva" type="password"><button class="eye-btn" type="button" onclick="toggleEye('ses-pass-nueva',this)" tabindex="-1">👁️</button></div>
     </div>
     <div class="form-group">
       <label class="form-label">Repetir nueva contraseña</label>
-      <input class="form-input" id="ses-pass-nueva2" type="password">
+      <div class="pass-wrap"><input class="form-input" id="ses-pass-nueva2" type="password"><button class="eye-btn" type="button" onclick="toggleEye('ses-pass-nueva2',this)" tabindex="-1">👁️</button></div>
     </div>
   </div>
   <div class="btn-row">
@@ -1415,7 +1485,7 @@ textarea.form-input{resize:vertical;min-height:60px;}
   <p id="confirmar-accion-desc" style="font-size:13px;color:var(--text2);margin-bottom:16px;"></p>
   <div class="form-group" style="margin-bottom:16px;">
    <label class="form-label">Contraseña de administrador</label>
-   <input class="form-input" id="confirmar-accion-pass" type="password" placeholder="Ingresá tu contraseña">
+   <div class="pass-wrap"><input class="form-input" id="confirmar-accion-pass" type="password" placeholder="Ingresá tu contraseña"><button class="eye-btn" type="button" onclick="toggleEye('confirmar-accion-pass',this)" tabindex="-1">👁️</button></div>
   </div>
   <div class="btn-row">
    <button class="btn btn-primary" id="confirmar-accion-btn" onclick="">✅ Confirmar</button>
@@ -1486,6 +1556,7 @@ let S = {
   users: [{ id:'u1', nombre:'Administrador', email:'admin@casatecno.com', wsp:'', rol:'admin', user:'admin' }],
   driveUrl: '',
   driveHist: [],
+  sucursales: [],
   userEvents: [],
   notificaciones: {},
   compraItemN: 0,
@@ -1495,8 +1566,125 @@ let S = {
 };
 
 // ══════════════════════════════════════════════
-//  FIREBASE
+//  EYE TOGGLE — mostrar/ocultar contraseña
 // ══════════════════════════════════════════════
+function toggleEye(inputId, btn){
+  const inp = document.getElementById(inputId);
+  if(!inp) return;
+  const isPass = inp.type==='password';
+  inp.type = isPass ? 'text' : 'password';
+  btn.textContent = isPass ? '🙈' : '👁️';
+}
+
+// ══════════════════════════════════════════════
+//  RECUPERAR CONTRASEÑA
+// ══════════════════════════════════════════════
+let _recUserId = null; // stores which user is resetting
+
+function showRecuperar(){
+  // Reset all steps
+  document.getElementById('rec-paso1').style.display='';
+  document.getElementById('rec-paso2').style.display='none';
+  document.getElementById('rec-paso3').style.display='none';
+  document.getElementById('rec-email').value='';
+  document.getElementById('rec-error').style.display='none';
+  document.getElementById('rec-pass-nueva').value='';
+  document.getElementById('rec-pass-nueva2').value='';
+  document.getElementById('rec-pass-error').style.display='none';
+  _recUserId = null;
+  document.getElementById('login-page').style.display='none';
+  document.getElementById('recuperar-page').style.display='flex';
+}
+
+function showLogin(){
+  document.getElementById('recuperar-page').style.display='none';
+  document.getElementById('login-page').style.display='flex';
+}
+
+function verificarEmailRecupero(){
+  const email = document.getElementById('rec-email').value.trim().toLowerCase();
+  const errEl = document.getElementById('rec-error');
+  if(!email){ errEl.textContent='Ingresá tu email.'; errEl.style.display='block'; return; }
+
+  // Check against users
+  const usr = S.users.find(u=>(u.email||'').toLowerCase()===email);
+  // Also check admin master
+  const isAdminMaster = (S.adminPerfil?.email||'').toLowerCase()===email;
+
+  if(!usr && !isAdminMaster){
+    errEl.textContent='El E-Mail ingresado no coincide con ningún usuario del sistema.';
+    errEl.style.display='block';
+    return;
+  }
+
+  errEl.style.display='none';
+  _recUserId = usr ? usr.id : 'admin';
+
+  // Try to send recovery email via EmailJS
+  if(S.emailjsPublicKey && S.emailjsServiceId && S.emailjsTemplateId){
+    if(typeof emailjs!=='undefined') emailjs.init(S.emailjsPublicKey);
+    // We go directly to step 2 (in-app reset) since we can't send link-based reset without server
+  }
+
+  // Show step 2
+  document.getElementById('rec-paso1').style.display='none';
+  document.getElementById('rec-paso2').style.display='';
+  document.getElementById('rec-pass-nueva').focus();
+}
+
+function validarPassRecupero(){
+  const p1 = document.getElementById('rec-pass-nueva').value;
+  const p2 = document.getElementById('rec-pass-nueva2').value;
+  const errEl = document.getElementById('rec-pass-error');
+
+  // Validate min 6 chars and at least one number
+  if(p1.length > 0 && p1.length < 6){
+    errEl.textContent='La contraseña debe tener al menos 6 caracteres.';
+    errEl.style.cssText='display:block;color:var(--accent);background:var(--accent-dim);padding:8px 12px;border-radius:var(--radius);';
+    return false;
+  }
+  if(p1.length >= 6 && !/\d/.test(p1)){
+    errEl.textContent='La contraseña debe contener al menos un número.';
+    errEl.style.cssText='display:block;color:var(--accent);background:var(--accent-dim);padding:8px 12px;border-radius:var(--radius);';
+    return false;
+  }
+  if(p2.length > 0 && p1 !== p2){
+    errEl.textContent='Las contraseñas no coinciden.';
+    errEl.style.cssText='display:block;color:var(--accent);background:var(--accent-dim);padding:8px 12px;border-radius:var(--radius);';
+    return false;
+  }
+  if(p1.length >= 6 && p1===p2){
+    errEl.textContent='✅ Las contraseñas coinciden.';
+    errEl.style.cssText='display:block;color:var(--green);background:var(--green-dim);padding:8px 12px;border-radius:var(--radius);';
+    return true;
+  }
+  errEl.style.display='none';
+  return false;
+}
+
+function guardarNuevaPass(){
+  const p1 = document.getElementById('rec-pass-nueva').value;
+  const p2 = document.getElementById('rec-pass-nueva2').value;
+  const errEl = document.getElementById('rec-pass-error');
+
+  if(!p1){ errEl.textContent='Ingresá una nueva contraseña.'; errEl.style.cssText='display:block;color:var(--accent);background:var(--accent-dim);padding:8px 12px;border-radius:var(--radius);'; return; }
+  if(p1.length < 6){ errEl.textContent='Mínimo 6 caracteres.'; errEl.style.cssText='display:block;color:var(--accent);background:var(--accent-dim);padding:8px 12px;border-radius:var(--radius);'; return; }
+  if(!/\d/.test(p1)){ errEl.textContent='Debe contener al menos un número.'; errEl.style.cssText='display:block;color:var(--accent);background:var(--accent-dim);padding:8px 12px;border-radius:var(--radius);'; return; }
+  if(p1 !== p2){ errEl.textContent='Las contraseñas no coinciden.'; errEl.style.cssText='display:block;color:var(--accent);background:var(--accent-dim);padding:8px 12px;border-radius:var(--radius);'; return; }
+
+  // Save new password
+  if(_recUserId==='admin'){
+    S.adminPass = p1;
+  } else {
+    const usr = S.users.find(u=>u.id===_recUserId);
+    if(usr) usr.pass = p1;
+  }
+  saveS();
+
+  // Show success
+  document.getElementById('rec-paso2').style.display='none';
+  document.getElementById('rec-paso3').style.display='';
+}
 let db = null;
 const FB_DOC = 'casatecno/datos';
 
@@ -1561,10 +1749,12 @@ function saveS(){
         logo:           S.logo,
         adminUser:      S.adminUser,
         adminPass:      S.adminPass,
+        adminPerfil:    S.adminPerfil||{},
         users:          S.users,
         driveUrl:       S.driveUrl,
         driveHist:      S.driveHist,
         driveLabel:     S.driveLabel,
+        sucursales:     S.sucursales||[],
         notificaciones: S.notificaciones,
         firebaseConfig: S.firebaseConfig,
         emailjsPublicKey:  S.emailjsPublicKey,
@@ -2898,6 +3088,17 @@ function autocompletarRetira(prefix){
   showToast('Datos del cliente cargados en Retira 1');
 }
 
+function pagarPorcentaje(prefix, pct){
+  const totalEl = document.getElementById(prefix+'-total');
+  const abonaEl = document.getElementById(prefix+'-abona');
+  if(!totalEl||!abonaEl) return;
+  const total = parseN(totalEl.textContent);
+  if(!total){ showToast('Primero agregá ítems para calcular el total','error'); return; }
+  const monto = Math.round(total * pct / 100);
+  abonaEl.value = fmtN(monto);
+  calcFalta(prefix);
+}
+
 function togglePago2(prefix){ const el=document.getElementById('pago2-'+prefix+'-row'); el.style.display=el.style.display==='none'?'flex':'none'; }
 function toggleFactura(prefix){ const el=document.getElementById('factura-'+prefix+'-expand'); el.style.display=el.style.display==='none'?'block':'none'; }
 function toggleExpand(bodyId){ document.getElementById(bodyId).classList.toggle('open'); }
@@ -3194,29 +3395,84 @@ function initBalance(){
   const hoyStr = new Date().toISOString().split('T')[0];
   const fechaEl = document.getElementById('bal-fecha');
   if(fechaEl && !fechaEl.value) fechaEl.value = hoyStr;
-  // Build sucursal checkboxes
-  const sucursales = [...new Set([
-    'Todas',
-    ...S.users.map(u=>u.sucursal||'').filter(Boolean)
-  ])];
-  const checksEl = document.getElementById('bal-sucursales-checks');
-  if(checksEl){
-    checksEl.innerHTML = sucursales.map(s=>`
-      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:5px 10px;background:var(--bg3);border-radius:var(--radius);border:1px solid var(--border);font-size:13px;">
-        <input type="checkbox" id="suc-chk-${s.replace(/\s/g,'_')}" value="${s}" checked
-          onchange="renderBalance()" style="accent-color:var(--accent);width:14px;height:14px;">
-        ${s}
-      </label>`).join('');
-  }
+  renderSucursalesChecks();
+  renderSucursalesList();
   renderBalance();
   renderBalanceHistorial();
 }
 
+function renderSucursalesChecks(){
+  const checksEl = document.getElementById('bal-sucursales-checks');
+  if(!checksEl) return;
+  const sucursales = S.sucursales||[];
+  if(!sucursales.length){
+    checksEl.innerHTML = '<span style="font-size:12px;color:var(--text3);">Sin sucursales configuradas — agregá una abajo</span>';
+    return;
+  }
+  checksEl.innerHTML = [
+    `<label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:5px 12px;background:var(--bg2);border-radius:var(--radius);border:1px solid var(--accent);font-size:13px;font-weight:600;">
+      <input type="checkbox" id="suc-chk-todas" value="todas" checked onchange="toggleTodasSucursales(this)" style="accent-color:var(--accent);width:14px;height:14px;">
+      Todas
+    </label>`,
+    ...sucursales.map(s=>`
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:5px 12px;background:var(--bg2);border-radius:var(--radius);border:1px solid var(--border);font-size:13px;">
+        <input type="checkbox" class="suc-chk" value="${s}" checked onchange="renderBalance()" style="accent-color:var(--accent);width:14px;height:14px;">
+        ${s}
+      </label>`)
+  ].join('');
+}
+
+function toggleTodasSucursales(chk){
+  document.querySelectorAll('.suc-chk').forEach(c=>c.checked=chk.checked);
+  renderBalance();
+}
+
+function renderSucursalesList(){
+  const lista = document.getElementById('sucursales-lista');
+  if(!lista) return;
+  const sucursales = S.sucursales||[];
+  if(!sucursales.length){
+    lista.innerHTML='<span style="font-size:12px;color:var(--text3);">Sin sucursales aún</span>';
+    return;
+  }
+  lista.innerHTML = sucursales.map((s,i)=>`
+    <div style="display:flex;align-items:center;gap:6px;padding:5px 10px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);font-size:13px;">
+      <span>🏢 ${s}</span>
+      <button onclick="eliminarSucursal(${i})" style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:14px;padding:0 2px;" title="Eliminar">✕</button>
+    </div>`).join('');
+}
+
+function agregarSucursal(){
+  const inp = document.getElementById('nueva-sucursal-input');
+  const nombre = inp?.value.trim();
+  if(!nombre){ showToast('Ingresá un nombre para la sucursal','error'); return; }
+  if(!S.sucursales) S.sucursales=[];
+  if(S.sucursales.includes(nombre)){ showToast('Ya existe una sucursal con ese nombre','error'); return; }
+  S.sucursales.push(nombre);
+  inp.value='';
+  saveS();
+  renderSucursalesChecks();
+  renderSucursalesList();
+  showToast('✅ Sucursal "'+nombre+'" agregada');
+}
+
+function eliminarSucursal(idx){
+  const nombre = S.sucursales[idx];
+  if(!confirm(`¿Eliminar la sucursal "${nombre}"? Los usuarios asignados a ella no se modifican.`)) return;
+  S.sucursales.splice(idx,1);
+  saveS();
+  renderSucursalesChecks();
+  renderSucursalesList();
+  renderBalance();
+  showToast('Sucursal eliminada');
+}
+
 function getSucursalesSeleccionadas(){
-  const checks = document.querySelectorAll('#bal-sucursales-checks input[type=checkbox]:checked');
+  const todas = document.getElementById('suc-chk-todas');
+  if(!todas || todas.checked) return null; // null = todas
+  const checks = document.querySelectorAll('.suc-chk:checked');
   const vals = [...checks].map(c=>c.value);
-  if(vals.includes('Todas')||!vals.length) return null; // null = todas
-  return vals;
+  return vals.length ? vals : null;
 }
 
 function volverAHoy(){
