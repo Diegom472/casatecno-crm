@@ -866,9 +866,52 @@ textarea.form-input{resize:vertical;min-height:60px;}
       </div>
     </div>
 
-</div>
+    <!-- ═══ EXPORTAR / IMPORTAR DATOS ═══ -->
+    <div class="admin-card">
+      <div class="admin-card-header" onclick="toggleAdminCard('backup')">
+        <span class="admin-card-title">💾 Exportar / Importar datos</span>
+        <span class="admin-card-arrow" id="arrow-backup">▼</span>
+      </div>
+      <div class="admin-card-body" id="body-backup">
+        <div class="notice" style="margin-bottom:16px;">
+          <strong>¿Para qué sirve?</strong><br>
+          • <strong>Exportar:</strong> descarga un archivo <code>.json</code> con todos tus datos (clientes, compras, servicios, etc.)<br>
+          • <strong>Importar:</strong> cargás ese archivo en otro navegador o dispositivo para sincronizar todo<br>
+          • <strong>Subir a Firebase:</strong> después de importar, subí los datos a la nube con un clic
+        </div>
 
-</div><!-- /pages wrapper -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+          <!-- EXPORTAR -->
+          <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:14px;">
+            <div style="font-weight:700;font-size:14px;margin-bottom:6px;">📤 Exportar datos</div>
+            <div style="font-size:12px;color:var(--text3);margin-bottom:12px;">Descarga todos tus datos como archivo de respaldo.</div>
+            <button class="btn btn-primary btn-sm" onclick="exportarDatos()">⬇️ Descargar backup.json</button>
+          </div>
+          <!-- IMPORTAR -->
+          <div style="background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);padding:14px;">
+            <div style="font-weight:700;font-size:14px;margin-bottom:6px;">📥 Importar datos</div>
+            <div style="font-size:12px;color:var(--text3);margin-bottom:12px;">Cargá un archivo de respaldo previo.</div>
+            <input type="file" id="import-file" accept=".json" style="display:none;" onchange="importarDatos(event)">
+            <button class="btn btn-secondary btn-sm" onclick="document.getElementById('import-file').click()">📂 Cargar backup.json</button>
+          </div>
+        </div>
+
+        <hr class="divider" style="margin:16px 0;">
+
+        <!-- SUBIR A FIREBASE -->
+        <div style="background:var(--bg3);border:1px solid var(--accent);border-radius:var(--radius);padding:14px;">
+          <div style="font-weight:700;font-size:14px;margin-bottom:4px;">🔥 Subir datos locales a Firebase</div>
+          <div style="font-size:12px;color:var(--text3);margin-bottom:12px;">Sube todos los datos del navegador actual a la nube. Usá esto cuando tengas datos en un navegador y quieras sincronizarlos.</div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <button class="btn btn-primary btn-sm" onclick="subirDatosAFirebase()">☁️ Subir todo a Firebase ahora</button>
+            <span id="backup-firebase-status" style="font-size:12px;color:var(--text3);"></span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div><!-- /admin-content -->
 </div><!-- /app -->
 
 <!-- ═══════════ TOAST ═══════════ -->
@@ -3005,8 +3048,97 @@ function renderUsersList(filtro=''){
 
 // Also block login for users with accesoBloqueado
 // ══════════════════════════════════════════════
-//  COLLAPSIBLE ADMIN CARDS
+//  EXPORTAR / IMPORTAR / SUBIR A FIREBASE
 // ══════════════════════════════════════════════
+function exportarDatos(){
+  const datos = JSON.stringify(S, null, 2);
+  const blob = new Blob([datos], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  const fecha = hoy().replace(/\//g,'-');
+  a.download = `casatecno-backup-${fecha}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+  showToast('✅ Backup descargado correctamente');
+}
+
+function importarDatos(event){
+  const file = event.target.files[0];
+  if(!file){ return; }
+  const reader = new FileReader();
+  reader.onload = (e)=>{
+    try{
+      const datos = JSON.parse(e.target.result);
+      // Validate it's a valid backup
+      if(!datos.clientes && !datos.eventos){
+        showToast('El archivo no parece ser un backup válido de Casa Tecno','error');
+        return;
+      }
+      // Confirm before overwriting
+      mostrarConfirmarAccion(
+        '📥 Importar datos',
+        `¿Importar este backup? Se van a reemplazar TODOS los datos actuales de este navegador con los del archivo. Esta acción no se puede deshacer.`,
+        ()=>{
+          Object.assign(S, datos);
+          saveS();
+          showToast('✅ Datos importados. Recargando...');
+          setTimeout(()=>location.reload(), 1500);
+        }
+      );
+    } catch(err){
+      showToast('Error al leer el archivo. Verificá que sea un JSON válido.','error');
+    }
+  };
+  reader.readAsText(file);
+  // Reset input
+  event.target.value='';
+}
+
+function subirDatosAFirebase(){
+  const statusEl = document.getElementById('backup-firebase-status');
+  if(!db){
+    showToast('Firebase no está conectado. Configurá las keys primero.','error');
+    return;
+  }
+  if(statusEl) statusEl.textContent = '⏳ Subiendo...';
+  // Force a full save to Firebase
+  const payload = {
+    clientes:       JSON.stringify(S.clientes),
+    eventos:        JSON.stringify(S.eventos),
+    calificaciones: JSON.stringify(S.calificaciones),
+    userEvents:     JSON.stringify(S.userEvents||[]),
+    config: JSON.stringify({
+      predefinidos:      S.predefinidos,
+      negocio:           S.negocio,
+      logo:              S.logo,
+      adminUser:         S.adminUser,
+      adminPass:         S.adminPass,
+      users:             S.users,
+      driveUrl:          S.driveUrl,
+      driveHist:         S.driveHist,
+      driveLabel:        S.driveLabel,
+      notificaciones:    S.notificaciones,
+      firebaseConfig:    S.firebaseConfig,
+      emailjsPublicKey:  S.emailjsPublicKey,
+      emailjsServiceId:  S.emailjsServiceId,
+      emailjsTemplateId: S.emailjsTemplateId,
+      darkMode:          S.darkMode,
+    })
+  };
+  db.doc('casatecno/datos').set(payload)
+    .then(()=>{
+      if(statusEl){ statusEl.textContent='✅ Subido correctamente'; statusEl.style.color='var(--green)'; }
+      showToast('✅ Todos los datos subidos a Firebase. Ya disponibles en cualquier navegador.');
+      setTimeout(()=>{ if(statusEl) statusEl.textContent=''; }, 5000);
+    })
+    .catch(err=>{
+      console.error('Firebase upload error:', err);
+      if(statusEl){ statusEl.textContent='❌ Error al subir'; statusEl.style.color='var(--accent)'; }
+      showToast('Error al subir a Firebase: '+err.message,'error');
+    });
+}
 function toggleAdminCard(id){
   const body  = document.getElementById('body-'+id);
   const arrow = document.getElementById('arrow-'+id);
