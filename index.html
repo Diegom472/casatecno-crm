@@ -3226,7 +3226,22 @@ function guardarCompra(imprimir){
   saveS(); renderHistorial(); renderComprobantes();
   closeModal('modal-compra');
   showToast('✅ Compra guardada · '+id);
-  if(S.metaConfig?.pixelId) dispararEventoPurchase({total:data.total, nombre:items[0]?.desc||''}, cliente, 'compra');
+  // Meta: si es edición, preguntar si actualizar; si es nueva, disparar siempre
+  if(S.metaConfig?.pixelId){
+    if(editingId){
+      // Usar el event_id de la nota ORIGINAL para que Meta deduplique
+      const orig = S.eventos.find(e=>e.id===editingId);
+      const origIdConsulta = orig?.data?.idConsulta||'';
+      mostrarConfirmarAccion(
+        '📊 ¿Actualizar evento en Meta?',
+        `El total cambió. ¿Querés enviar el evento Purchase actualizado a Meta con el nuevo total ($${fmtN(data.total)})? Se usará el mismo Event ID para que Meta reemplace el anterior.`,
+        ()=>dispararEventoPurchase({total:data.total, nombre:items[0]?.desc||'', eventIdOverride: origIdConsulta||editingId}, cliente, 'compra'),
+        false // no requiere contraseña de admin
+      );
+    } else {
+      dispararEventoPurchase({total:data.total, nombre:items[0]?.desc||''}, cliente, 'compra');
+    }
+  }
   if(imprimir) setTimeout(()=>imprimirComprobante('COMPRA',id,cliente,data,null),300);
 }
 
@@ -3278,7 +3293,20 @@ function guardarServicio(imprimir){
   saveS(); renderHistorial(); renderComprobantes();
   closeModal('modal-servicio');
   showToast('✅ Servicio guardado · '+id);
-  if(S.metaConfig?.pixelId) dispararEventoPurchase({total:data.total, nombre:items[0]?.desc||''}, cliente, 'serv');
+  if(S.metaConfig?.pixelId){
+    if(editingId){
+      const orig = S.eventos.find(e=>e.id===editingId);
+      const origIdConsulta = orig?.data?.idConsulta||'';
+      mostrarConfirmarAccion(
+        '📊 ¿Actualizar evento en Meta?',
+        `El total cambió. ¿Querés enviar el evento Purchase actualizado a Meta con el nuevo total ($${fmtN(data.total)})? Se usará el mismo Event ID para que Meta reemplace el anterior.`,
+        ()=>dispararEventoPurchase({total:data.total, nombre:items[0]?.desc||'', eventIdOverride: origIdConsulta||editingId}, cliente, 'serv'),
+        false // no requiere contraseña de admin
+      );
+    } else {
+      dispararEventoPurchase({total:data.total, nombre:items[0]?.desc||''}, cliente, 'serv');
+    }
+  }
   if(imprimir) setTimeout(()=>imprimirComprobante('SERVICIO',id,cliente,data,null),300);
 }
 
@@ -3604,7 +3632,7 @@ async function dispararEventoPurchase(eventData, clienteData, prefix){
   const userAgent= document.getElementById(prefix+'-meta-ua').value.trim();
   const adId     = document.getElementById(prefix+'-meta-adid').value.trim();
   const campaign = document.getElementById(prefix+'-meta-campaign').value.trim();
-  const orderId  = leadId || ('AUTO-'+(clienteData?.whatsapp||'').slice(-4)+'-'+Date.now().toString(36).toUpperCase());
+  const orderId  = eventData.eventIdOverride || leadId || ('AUTO-'+(clienteData?.whatsapp||'').slice(-4)+'-'+Date.now().toString(36).toUpperCase());
   const eventTime= Math.floor(Date.now()/1000);
   const tel      = (clienteData?.whatsapp||'').replace(/\D/g,'');
   const [h_em,h_fn,h_ln,h_ph,h_zp,h_st,h_ct,h_country] = await Promise.all([
@@ -4923,22 +4951,27 @@ function otorgarAcceso(id){
 }
 
 // Helper: show confirmar-accion modal and run callback on confirm
-function mostrarConfirmarAccion(titulo, desc, callback){
+function mostrarConfirmarAccion(titulo, desc, callback, requirePass=true){
   document.getElementById('confirmar-accion-title').innerHTML = titulo+' <button class="modal-close" onclick="closeModal(\'modal-confirmar-accion\')">✕</button>';
   document.getElementById('confirmar-accion-desc').textContent = desc;
-  document.getElementById('confirmar-accion-pass').value = '';
+  const passField = document.getElementById('confirmar-accion-pass');
+  passField.style.display = requirePass ? '' : 'none';
+  passField.value = '';
   const btn = document.getElementById('confirmar-accion-btn');
-  // Remove old listener by replacing button
   const newBtn = btn.cloneNode(true);
   btn.parentNode.replaceChild(newBtn, btn);
+  newBtn.textContent = '✅ Confirmar';
   newBtn.onclick = ()=>{
-    const pass = document.getElementById('confirmar-accion-pass').value;
-    if(pass !== S.adminPass){ showToast('Contraseña de administrador incorrecta','error'); return; }
+    if(requirePass){
+      const pass = document.getElementById('confirmar-accion-pass').value;
+      if(pass !== S.adminPass){ showToast('Contraseña de administrador incorrecta','error'); return; }
+    }
     closeModal('modal-confirmar-accion');
+    passField.style.display='';
     callback();
   };
   openModal('modal-confirmar-accion');
-  setTimeout(()=>document.getElementById('confirmar-accion-pass').focus(), 200);
+  if(requirePass) setTimeout(()=>passField.focus(), 200);
 }
 
 // ══════════════════════════════════════════════
