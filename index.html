@@ -3232,11 +3232,13 @@ function guardarCompra(imprimir){
       // Usar el event_id de la nota ORIGINAL para que Meta deduplique
       const orig = S.eventos.find(e=>e.id===editingId);
       const origIdConsulta = orig?.data?.idConsulta||'';
+      // Usar siempre el ID de la nota original para deduplicación en Meta
+      const metaEventId = origIdConsulta || editingId;
       mostrarConfirmarAccion(
         '📊 ¿Actualizar evento en Meta?',
-        `El total cambió. ¿Querés enviar el evento Purchase actualizado a Meta con el nuevo total ($${fmtN(data.total)})? Se usará el mismo Event ID para que Meta reemplace el anterior.`,
-        ()=>dispararEventoPurchase({total:data.total, nombre:items[0]?.desc||'', eventIdOverride: origIdConsulta||editingId}, cliente, 'compra'),
-        false // no requiere contraseña de admin
+        `El total cambió. ¿Querés enviar el evento Purchase actualizado a Meta con el nuevo total ($${fmtN(data.total)})? Se usará el mismo Event ID (${metaEventId}) para que Meta reemplace el anterior.`,
+        ()=>dispararEventoPurchase({total:data.total, nombre:items[0]?.desc||'', eventIdOverride: metaEventId}, cliente, 'compra'),
+        false
       );
     } else {
       dispararEventoPurchase({total:data.total, nombre:items[0]?.desc||''}, cliente, 'compra');
@@ -3297,10 +3299,11 @@ function guardarServicio(imprimir){
     if(editingId){
       const orig = S.eventos.find(e=>e.id===editingId);
       const origIdConsulta = orig?.data?.idConsulta||'';
+      const metaEventId = origIdConsulta || editingId;
       mostrarConfirmarAccion(
         '📊 ¿Actualizar evento en Meta?',
-        `El total cambió. ¿Querés enviar el evento Purchase actualizado a Meta con el nuevo total ($${fmtN(data.total)})? Se usará el mismo Event ID para que Meta reemplace el anterior.`,
-        ()=>dispararEventoPurchase({total:data.total, nombre:items[0]?.desc||'', eventIdOverride: origIdConsulta||editingId}, cliente, 'serv'),
+        `El total cambió. ¿Querés enviar el evento Purchase actualizado a Meta con el nuevo total ($${fmtN(data.total)})? Se usará el mismo Event ID (${metaEventId}) para que Meta reemplace el anterior.`,
+        ()=>dispararEventoPurchase({total:data.total, nombre:items[0]?.desc||'', eventIdOverride: metaEventId}, cliente, 'serv'),
         false // no requiere contraseña de admin
       );
     } else {
