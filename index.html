@@ -3232,7 +3232,7 @@ function guardarCompra(imprimir){
   if(editingId){
     const orig=S.eventos.find(e=>e.id===editingId);
     if(orig) orig.editadoPor=id;
-    metaEventIdCompra = orig?.data?.idConsulta || editingId;
+    metaEventIdCompra = getRootIdConsulta(editingId);
     document.getElementById('modal-compra').removeAttribute('data-editing');
   }
   S.eventos.push({ id, clienteId:S.currentClienteId, tipo:'COMPRA', nombre:items[0].desc+(items.length>1?` +${items.length-1}`:''), fecha:hoy(), timestamp:ahoraTimestamp(), data, esEdicionDe:editingId||null });
@@ -3298,7 +3298,7 @@ function guardarServicio(imprimir){
   if(editingId){
     const orig=S.eventos.find(e=>e.id===editingId);
     if(orig) orig.editadoPor=id;
-    metaEventIdServ = orig?.data?.idConsulta || editingId;
+    metaEventIdServ = getRootIdConsulta(editingId);
     document.getElementById('modal-servicio').removeAttribute('data-editing');
   }
   S.eventos.push({ id, clienteId:S.currentClienteId, tipo:'SERVICIO', nombre:items.length?items[0].desc:(comps.length?comps[0].componente:'Servicio'), fecha:hoy(), timestamp:ahoraTimestamp(), data, esEdicionDe:editingId||null });
@@ -3621,6 +3621,16 @@ async function buscarDatosTecnicosMeta(prefix){
     statusEl.style.color='var(--accent)';
     statusEl.textContent='Error al buscar. Podés continuar sin datos técnicos.';
   }
+}
+
+function getRootIdConsulta(notaId){
+  let ev = S.eventos.find(e => e.id === notaId);
+  while(ev?.esEdicionDe){
+    const parent = S.eventos.find(e => e.id === ev.esEdicionDe);
+    if(!parent) break;
+    ev = parent;
+  }
+  return ev?.data?.idConsulta || ev?.id || notaId;
 }
 
 async function sha256Meta(str){
