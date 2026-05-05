@@ -388,8 +388,11 @@ textarea.form-input{resize:vertical;min-height:60px;}
     <div class="card-title">Datos Personales</div>
     <div class="form-grid">
       <div class="form-group">
-        <label class="form-label">Nombre Completo *</label>
-        <input class="form-input" id="c-nombre" type="text" placeholder="Apellido y nombre">
+        <label class="form-label">Nombre y Apellido *</label>
+        <div style="display:flex;gap:6px;">
+          <input class="form-input" id="c-nombre" type="text" placeholder="Nombre" style="flex:1;">
+          <input class="form-input" id="c-apellido" type="text" placeholder="Apellido" style="flex:1;">
+        </div>
       </div>
 
       <!-- DNI / CUIT -->
@@ -2017,7 +2020,7 @@ function fillNegocioAdmin(){
 function limpiarFicha(){
   S.currentClienteId = null;
   document.getElementById('cliente-id-badge').textContent = 'NUEVO';
-  ['c-nombre','c-domicilio','c-localidad','c-cp','c-provincia','c-whatsapp','c-contacto','c-email','c-dni','c-cuit-p','c-cuit-m','c-cuit-s','c-iva-custom'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  ['c-nombre','c-apellido','c-domicilio','c-localidad','c-cp','c-provincia','c-whatsapp','c-contacto','c-email','c-dni','c-cuit-p','c-cuit-m','c-cuit-s','c-iva-custom'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
   document.getElementById('c-iva').value='Consumidor Final';
   document.getElementById('c-canal').value='';
   document.getElementById('c-doc-tipo').value='dni';
@@ -2032,13 +2035,20 @@ function getClienteData(){
   else { dni=v('c-cuit-p')+'-'+v('c-cuit-m')+'-'+v('c-cuit-s'); }
   let iva = document.getElementById('c-iva').value;
   if(iva==='otro') iva = v('c-iva-custom') || 'Otro';
-  return { nombre:v('c-nombre'), dni, docTipo, domicilio:v('c-domicilio'), localidad:v('c-localidad'), cp:v('c-cp'), provincia:v('c-provincia'), iva, whatsapp:v('c-whatsapp'), contacto:v('c-contacto'), email:v('c-email'), canal:document.getElementById('c-canal').value };
+  const apellido = v('c-apellido').trim();
+  const nombreBase = v('c-nombre').trim();
+  const nombreCompleto = apellido ? nombreBase + ' ' + apellido : nombreBase;
+  return { nombre:nombreCompleto, apellido, fn:nombreBase, ln:apellido, dni, docTipo, domicilio:v('c-domicilio'), localidad:v('c-localidad'), cp:v('c-cp'), provincia:v('c-provincia'), iva, whatsapp:v('c-whatsapp'), contacto:v('c-contacto'), email:v('c-email'), canal:document.getElementById('c-canal').value };
 }
 
 function fillFicha(c){
   S.currentClienteId = c.id;
   document.getElementById('cliente-id-badge').textContent = 'ID: '+c.id;
-  setv('c-nombre',c.nombre); setv('c-domicilio',c.domicilio); setv('c-localidad',c.localidad); setv('c-cp',c.cp||'');
+  // Si tiene fn/ln separados los usa, sino divide el nombre completo
+  const fn = c.fn || (c.nombre||'').split(' ')[0] || '';
+  const ln = c.ln || c.apellido || (c.nombre||'').split(' ').slice(1).join(' ') || '';
+  setv('c-nombre', fn); setv('c-apellido', ln);
+  setv('c-domicilio',c.domicilio); setv('c-localidad',c.localidad); setv('c-cp',c.cp||'');
   setv('c-provincia',c.provincia); setv('c-whatsapp',c.whatsapp); setv('c-contacto',c.contacto); setv('c-email',c.email);
   document.getElementById('c-canal').value = c.canal||'';
   // DNI/CUIT
@@ -3657,8 +3667,8 @@ async function dispararEventoPurchase(eventData, clienteData, prefix){
   const tel      = (clienteData?.whatsapp||'').replace(/\D/g,'');
   const [h_em,h_fn,h_ln,h_ph,h_zp,h_st,h_ct,h_country] = await Promise.all([
     sha256Meta(clienteData?.email||''),
-    sha256Meta((clienteData?.nombre||'').split(' ')[0]),
-    sha256Meta((clienteData?.nombre||'').split(' ').slice(1).join(' ')),
+    sha256Meta(clienteData?.fn || (clienteData?.nombre||'').split(' ')[0]),
+    sha256Meta(clienteData?.ln || clienteData?.apellido || (clienteData?.nombre||'').split(' ').slice(1).join(' ')),
     sha256Meta(tel),
     sha256Meta(clienteData?.cp||''),
     sha256Meta(clienteData?.provincia||''),
