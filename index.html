@@ -1067,6 +1067,11 @@ textarea.form-input{resize:vertical;min-height:60px;}
         <label class="form-label">ID de Consulta (CT-XXXXXX)</label>
         <div style="display:flex;gap:6px;">
           <input class="form-input" id="compra-id-consulta" type="text" placeholder="CT-M8X3KZ" style="font-family:monospace;letter-spacing:0.05em;">
+          <select class="form-input" id="compra-action-source" style="min-width:140px;max-width:160px;flex-shrink:0;">
+            <option value="chat" selected>💬 WhatsApp</option>
+            <option value="physical_store">🏪 Tienda física</option>
+            <option value="website">🌐 Web</option>
+          </select>
           <button class="btn btn-secondary btn-sm" onclick="buscarDatosTecnicosMeta('compra')" style="white-space:nowrap;">🔍 Buscar</button>
         </div>
         <div id="compra-meta-status" style="font-size:11px;margin-top:4px;display:none;"></div>
@@ -1209,6 +1214,11 @@ textarea.form-input{resize:vertical;min-height:60px;}
         <label class="form-label">ID de Consulta (CT-XXXXXX)</label>
         <div style="display:flex;gap:6px;">
           <input class="form-input" id="serv-id-consulta" type="text" placeholder="CT-M8X3KZ" style="font-family:monospace;letter-spacing:0.05em;">
+          <select class="form-input" id="serv-action-source" style="min-width:140px;max-width:160px;flex-shrink:0;">
+            <option value="chat" selected>💬 WhatsApp</option>
+            <option value="physical_store">🏪 Tienda física</option>
+            <option value="website">🌐 Web</option>
+          </select>
           <button class="btn btn-secondary btn-sm" onclick="buscarDatosTecnicosMeta('serv')" style="white-space:nowrap;">🔍 Buscar</button>
         </div>
         <div id="serv-meta-status" style="font-size:11px;margin-top:4px;display:none;"></div>
@@ -3215,11 +3225,13 @@ function guardarCompra(imprimir){
     facturacion:{ iva:document.getElementById('fac-compra-iva').value, cuit:v('fac-compra-cuit'), nombre:v('fac-compra-nombre'), dir:v('fac-compra-dir') },
     creadoPor: S.currentUser?.nombreCompleto || S.currentUser?.nombre || 'Administrador',
   };
-  // Check if editing an existing event
+  // Check if editing an existing event — resolver ANTES del push
   const editingId = document.getElementById('modal-compra').getAttribute('data-editing');
+  let metaEventIdCompra = null;
   if(editingId){
     const orig=S.eventos.find(e=>e.id===editingId);
     if(orig) orig.editadoPor=id;
+    metaEventIdCompra = orig?.data?.idConsulta || editingId;
     document.getElementById('modal-compra').removeAttribute('data-editing');
   }
   S.eventos.push({ id, clienteId:S.currentClienteId, tipo:'COMPRA', nombre:items[0].desc+(items.length>1?` +${items.length-1}`:''), fecha:hoy(), timestamp:ahoraTimestamp(), data, esEdicionDe:editingId||null });
@@ -3229,15 +3241,10 @@ function guardarCompra(imprimir){
   // Meta: si es edición, preguntar si actualizar; si es nueva, disparar siempre
   if(S.metaConfig?.pixelId){
     if(editingId){
-      // Usar el event_id de la nota ORIGINAL para que Meta deduplique
-      const orig = S.eventos.find(e=>e.id===editingId);
-      const origIdConsulta = orig?.data?.idConsulta||'';
-      // Usar siempre el ID de la nota original para deduplicación en Meta
-      const metaEventId = origIdConsulta || editingId;
       mostrarConfirmarAccion(
         '📊 ¿Actualizar evento en Meta?',
-        `El total cambió. ¿Querés enviar el evento Purchase actualizado a Meta con el nuevo total ($${fmtN(data.total)})? Se usará el mismo Event ID (${metaEventId}) para que Meta reemplace el anterior.`,
-        ()=>dispararEventoPurchase({total:data.total, nombre:items[0]?.desc||'', eventIdOverride: metaEventId}, cliente, 'compra'),
+        `El total cambió. ¿Querés enviar el evento Purchase actualizado a Meta con el nuevo total ($${fmtN(data.total)})? Se usará el mismo Event ID (${metaEventIdCompra}) para que Meta reemplace el anterior.`,
+        ()=>dispararEventoPurchase({total:data.total, nombre:items[0]?.desc||'', eventIdOverride: metaEventIdCompra}, cliente, 'compra'),
         false
       );
     } else {
@@ -3286,9 +3293,11 @@ function guardarServicio(imprimir){
     creadoPor: S.currentUser?.nombreCompleto || S.currentUser?.nombre || 'Administrador',
   };
   const editingId = document.getElementById('modal-servicio').getAttribute('data-editing');
+  let metaEventIdServ = null;
   if(editingId){
     const orig=S.eventos.find(e=>e.id===editingId);
     if(orig) orig.editadoPor=id;
+    metaEventIdServ = orig?.data?.idConsulta || editingId;
     document.getElementById('modal-servicio').removeAttribute('data-editing');
   }
   S.eventos.push({ id, clienteId:S.currentClienteId, tipo:'SERVICIO', nombre:items.length?items[0].desc:(comps.length?comps[0].componente:'Servicio'), fecha:hoy(), timestamp:ahoraTimestamp(), data, esEdicionDe:editingId||null });
@@ -3297,13 +3306,10 @@ function guardarServicio(imprimir){
   showToast('✅ Servicio guardado · '+id);
   if(S.metaConfig?.pixelId){
     if(editingId){
-      const orig = S.eventos.find(e=>e.id===editingId);
-      const origIdConsulta = orig?.data?.idConsulta||'';
-      const metaEventId = origIdConsulta || editingId;
       mostrarConfirmarAccion(
         '📊 ¿Actualizar evento en Meta?',
-        `El total cambió. ¿Querés enviar el evento Purchase actualizado a Meta con el nuevo total ($${fmtN(data.total)})? Se usará el mismo Event ID (${metaEventId}) para que Meta reemplace el anterior.`,
-        ()=>dispararEventoPurchase({total:data.total, nombre:items[0]?.desc||'', eventIdOverride: metaEventId}, cliente, 'serv'),
+        `El total cambió. ¿Querés enviar el evento Purchase actualizado a Meta con el nuevo total ($${fmtN(data.total)})? Se usará el mismo Event ID (${metaEventIdServ}) para que Meta reemplace el anterior.`,
+        ()=>dispararEventoPurchase({total:data.total, nombre:items[0]?.desc||'', eventIdOverride: metaEventIdServ}, cliente, 'serv'),
         false // no requiere contraseña de admin
       );
     } else {
@@ -3656,11 +3662,12 @@ async function dispararEventoPurchase(eventData, clienteData, prefix){
     ...(clientIp ? {client_ip_address:clientIp} : {}),
     ...(userAgent ? {client_user_agent:userAgent} : {}),
   };
+  const actionSource = document.getElementById(prefix+'-action-source')?.value || 'chat';
   const payload = { data:[{
     event_name:    'Purchase',
     event_time:    eventTime,
-    event_id:      `${orderId}-purchase-${eventTime}`,
-    action_source: 'other',
+    event_id:      orderId,
+    action_source: actionSource,
     user_data,
     custom_data:{
       content_name:  eventData.nombre||'',
