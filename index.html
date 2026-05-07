@@ -1791,16 +1791,29 @@ function guardarNuevaPass(){
 let db = null;
 const FB_DOC = 'casatecno/datos';
 
+// ── Firebase config hardcodeada (no requiere configuración manual) ──
+const FIREBASE_CONFIG_DEFAULT = {
+  apiKey:            "AIzaSyDMxyLNtPznVMAkg-fc9000XdoAqu8WS0U",
+  authDomain:        "ct-usuarios-clientes.firebaseapp.com",
+  projectId:         "ct-usuarios-clientes",
+  storageBucket:     "ct-usuarios-clientes.firebasestorage.app",
+  messagingSenderId: "538162661061",
+  appId:             "1:538162661061:web:0f38ccb93feaf2cdb212ac"
+};
+
 function initFirebase(){
-  const cfg = S.firebaseConfig;
-  if(!cfg?.apiKey || !cfg?.projectId) return false;
+  const cfg = (S.firebaseConfig?.apiKey) ? S.firebaseConfig : FIREBASE_CONFIG_DEFAULT;
+  // Asegurar que S.firebaseConfig tenga la config correcta
+  if(!S.firebaseConfig?.apiKey) S.firebaseConfig = FIREBASE_CONFIG_DEFAULT;
   try {
     if(!firebase.apps.length){
       firebase.initializeApp({
-        apiKey:     cfg.apiKey,
-        authDomain: cfg.projectId+'.firebaseapp.com',
-        projectId:  cfg.projectId,
-        appId:      cfg.appId||''
+        apiKey:            cfg.apiKey,
+        authDomain:        cfg.authDomain || cfg.projectId+'.firebaseapp.com',
+        projectId:         cfg.projectId,
+        storageBucket:     cfg.storageBucket || cfg.projectId+'.firebasestorage.app',
+        messagingSenderId: cfg.messagingSenderId || '',
+        appId:             cfg.appId || ''
       });
     }
     db = firebase.firestore();
@@ -1931,10 +1944,18 @@ function showRecuperar(){ document.getElementById('login-page').style.display='n
 function doLogin(){
   const u = v('login-user').trim();
   const p = v('login-pass').trim();
+  // Si Firebase aún no cargó los datos, esperar hasta 5 segundos
+  if(!S.adminPass && !S.usuarios?.length){
+    showToast('Cargando datos... intentá en un momento','error');
+    // Reintentar automáticamente en 2 segundos
+    setTimeout(()=>doLogin(), 2000);
+    return;
+  }
   // Check admin master
   if(u===S.adminUser && p===S.adminPass){ loginOk({id:'admin',nombre:'Administrador',rol:'admin',user:u}); return; }
-  // Check users
-  const usr = S.users.find(x => x.user===u && x.pass===p);
+  // Check users — soporta tanto S.users como S.usuarios
+  const listaUsuarios = S.usuarios || S.users || [];
+  const usr = listaUsuarios.find(x => x.user===u && x.pass===p);
   if(usr){
     if(usr.accesoBloqueado){ showToast('Tu acceso está deshabilitado. Contactá al administrador.','error'); return; }
     if(usr.pending||!usr.pass){ showToast('Tu cuenta aún no fue activada. Contactá al administrador.','error'); return; }
@@ -1962,7 +1983,8 @@ function loginOk(usr){
 function enviarRecupero(){
   const email = v('rec-email').trim();
   if(!email){ showToast('Ingresá tu email','error'); return; }
-  const usr = S.users.find(u => u.email===email);
+  const listaUsuarios2 = S.usuarios || S.users || [];
+  const usr = listaUsuarios2.find(u => u.email===email);
   showToast('Si el email existe, recibirás las instrucciones. (Demo: verificar consola)');
   console.log('Recupero solicitado para:', email, usr ? '— usuario encontrado' : '— no encontrado');
   showLogin();
