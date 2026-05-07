@@ -1832,7 +1832,7 @@ function initFirebase(){
         if(data.config){
           const cfg2 = JSON.parse(data.config);
           // Don't overwrite session-specific data
-          const keep = { currentUser:S.currentUser, darkMode:S.darkMode, compraItemN:S.compraItemN, servItemN:S.servItemN };
+          const keep = { currentUser:S.currentUser, darkMode:S.darkMode, compraItemN:S.compraItemN, servItemN:S.servItemN, firebaseConfig:S.firebaseConfig };
           Object.assign(S, cfg2, keep);
         }
         localStorage.setItem('ct_crm_v2', JSON.stringify(S));
@@ -1906,7 +1906,9 @@ async function loadS(){
       if(data.userEvents)     S.userEvents     = JSON.parse(data.userEvents);
       if(data.config){
         const cfg = JSON.parse(data.config);
+        const keepFirebase = S.firebaseConfig; // preserve hardcoded config
         Object.assign(S, cfg);
+        S.firebaseConfig = keepFirebase; // restore after assign
       }
       // Update localStorage with cloud data
       localStorage.setItem('ct_crm_v2', JSON.stringify(S));
