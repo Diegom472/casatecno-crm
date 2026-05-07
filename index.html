@@ -1831,7 +1831,7 @@ function initFirebase(){
         if(data.userEvents)     S.userEvents     = JSON.parse(data.userEvents);
         if(data.config){
           const cfg2 = JSON.parse(data.config);
-          // Don't overwrite session-specific data
+          delete cfg2.firebaseConfig; // siempre usar la config hardcodeada
           const keep = { currentUser:S.currentUser, darkMode:S.darkMode, compraItemN:S.compraItemN, servItemN:S.servItemN, firebaseConfig:S.firebaseConfig };
           Object.assign(S, cfg2, keep);
         }
@@ -1873,7 +1873,6 @@ function saveS(){
         sucursales:     S.sucursales||[],
         metaConfig:     S.metaConfig||{},
         notificaciones: S.notificaciones,
-        firebaseConfig: S.firebaseConfig,
         emailjsPublicKey:  S.emailjsPublicKey,
         emailjsServiceId:  S.emailjsServiceId,
         emailjsTemplateId: S.emailjsTemplateId,
@@ -1890,7 +1889,11 @@ async function loadS(){
   // Always load localStorage first for instant display
   try{
     const d = localStorage.getItem('ct_crm_v2');
-    if(d) Object.assign(S, JSON.parse(d));
+    if(d){
+      const parsed = JSON.parse(d);
+      delete parsed.firebaseConfig; // siempre usar la config hardcodeada
+      Object.assign(S, parsed);
+    }
   } catch(e){}
 
   // Try Firebase
@@ -1906,9 +1909,10 @@ async function loadS(){
       if(data.userEvents)     S.userEvents     = JSON.parse(data.userEvents);
       if(data.config){
         const cfg = JSON.parse(data.config);
-        const keepFirebase = S.firebaseConfig; // preserve hardcoded config
+        delete cfg.firebaseConfig; // siempre usar la config hardcodeada
+        const keepFirebase = S.firebaseConfig;
         Object.assign(S, cfg);
-        S.firebaseConfig = keepFirebase; // restore after assign
+        S.firebaseConfig = keepFirebase;
       }
       // Update localStorage with cloud data
       localStorage.setItem('ct_crm_v2', JSON.stringify(S));
