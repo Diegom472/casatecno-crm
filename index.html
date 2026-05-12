@@ -138,7 +138,7 @@ textarea.form-input{resize:vertical;min-height:60px;}
 .pago-label{font-family:var(--font-cond);font-weight:700;font-size:14px;text-transform:uppercase;letter-spacing:0.4px;min-width:90px;}
 .total-display{font-family:var(--font-cond);font-weight:800;font-size:20px;color:var(--accent);}
 .falta-ok{color:var(--green)!important;}
-.falta-pending{color:var(--accent)!important;}
+.falta-pending{color:var(--yellow)!important;}
 
 /* ══ RETIRA ══ */
 .retira-section{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius2);padding:14px;margin-top:10px;}
@@ -388,11 +388,8 @@ textarea.form-input{resize:vertical;min-height:60px;}
     <div class="card-title">Datos Personales</div>
     <div class="form-grid">
       <div class="form-group">
-        <label class="form-label">Nombre y Apellido *</label>
-        <div style="display:flex;gap:6px;">
-          <input class="form-input" id="c-nombre" type="text" placeholder="Nombre" style="flex:1;">
-          <input class="form-input" id="c-apellido" type="text" placeholder="Apellido" style="flex:1;">
-        </div>
+        <label class="form-label">Nombre Completo *</label>
+        <input class="form-input" id="c-nombre" type="text" placeholder="Apellido y nombre">
       </div>
 
       <!-- DNI / CUIT -->
@@ -1070,11 +1067,6 @@ textarea.form-input{resize:vertical;min-height:60px;}
         <label class="form-label">ID de Consulta (CT-XXXXXX)</label>
         <div style="display:flex;gap:6px;">
           <input class="form-input" id="compra-id-consulta" type="text" placeholder="CT-M8X3KZ" style="font-family:monospace;letter-spacing:0.05em;">
-          <select class="form-input" id="compra-action-source" style="min-width:140px;max-width:160px;flex-shrink:0;">
-            <option value="chat" selected>💬 WhatsApp</option>
-            <option value="physical_store">🏪 Tienda física</option>
-            <option value="website">🌐 Web</option>
-          </select>
           <button class="btn btn-secondary btn-sm" onclick="buscarDatosTecnicosMeta('compra')" style="white-space:nowrap;">🔍 Buscar</button>
         </div>
         <div id="compra-meta-status" style="font-size:11px;margin-top:4px;display:none;"></div>
@@ -1217,11 +1209,6 @@ textarea.form-input{resize:vertical;min-height:60px;}
         <label class="form-label">ID de Consulta (CT-XXXXXX)</label>
         <div style="display:flex;gap:6px;">
           <input class="form-input" id="serv-id-consulta" type="text" placeholder="CT-M8X3KZ" style="font-family:monospace;letter-spacing:0.05em;">
-          <select class="form-input" id="serv-action-source" style="min-width:140px;max-width:160px;flex-shrink:0;">
-            <option value="chat" selected>💬 WhatsApp</option>
-            <option value="physical_store">🏪 Tienda física</option>
-            <option value="website">🌐 Web</option>
-          </select>
           <button class="btn btn-secondary btn-sm" onclick="buscarDatosTecnicosMeta('serv')" style="white-space:nowrap;">🔍 Buscar</button>
         </div>
         <div id="serv-meta-status" style="font-size:11px;margin-top:4px;display:none;"></div>
@@ -1791,29 +1778,16 @@ function guardarNuevaPass(){
 let db = null;
 const FB_DOC = 'casatecno/datos';
 
-// ── Firebase config hardcodeada (no requiere configuración manual) ──
-const FIREBASE_CONFIG_DEFAULT = {
-  apiKey:            "AIzaSyDMxyLNtPznVMAkg-fc9000XdoAqu8WS0U",
-  authDomain:        "ct-usuarios-clientes.firebaseapp.com",
-  projectId:         "ct-usuarios-clientes",
-  storageBucket:     "ct-usuarios-clientes.firebasestorage.app",
-  messagingSenderId: "538162661061",
-  appId:             "1:538162661061:web:0f38ccb93feaf2cdb212ac"
-};
-
 function initFirebase(){
-  const cfg = (S.firebaseConfig?.apiKey) ? S.firebaseConfig : FIREBASE_CONFIG_DEFAULT;
-  // Asegurar que S.firebaseConfig tenga la config correcta
-  if(!S.firebaseConfig?.apiKey) S.firebaseConfig = FIREBASE_CONFIG_DEFAULT;
+  const cfg = S.firebaseConfig;
+  if(!cfg?.apiKey || !cfg?.projectId) return false;
   try {
     if(!firebase.apps.length){
       firebase.initializeApp({
-        apiKey:            cfg.apiKey,
-        authDomain:        cfg.authDomain || cfg.projectId+'.firebaseapp.com',
-        projectId:         cfg.projectId,
-        storageBucket:     cfg.storageBucket || cfg.projectId+'.firebasestorage.app',
-        messagingSenderId: cfg.messagingSenderId || '',
-        appId:             cfg.appId || ''
+        apiKey:     cfg.apiKey,
+        authDomain: cfg.projectId+'.firebaseapp.com',
+        projectId:  cfg.projectId,
+        appId:      cfg.appId||''
       });
     }
     db = firebase.firestore();
@@ -1831,8 +1805,8 @@ function initFirebase(){
         if(data.userEvents)     S.userEvents     = JSON.parse(data.userEvents);
         if(data.config){
           const cfg2 = JSON.parse(data.config);
-          delete cfg2.firebaseConfig; // siempre usar la config hardcodeada
-          const keep = { currentUser:S.currentUser, darkMode:S.darkMode, compraItemN:S.compraItemN, servItemN:S.servItemN, firebaseConfig:S.firebaseConfig };
+          // Don't overwrite session-specific data
+          const keep = { currentUser:S.currentUser, darkMode:S.darkMode, compraItemN:S.compraItemN, servItemN:S.servItemN };
           Object.assign(S, cfg2, keep);
         }
         localStorage.setItem('ct_crm_v2', JSON.stringify(S));
@@ -1873,6 +1847,7 @@ function saveS(){
         sucursales:     S.sucursales||[],
         metaConfig:     S.metaConfig||{},
         notificaciones: S.notificaciones,
+        firebaseConfig: S.firebaseConfig,
         emailjsPublicKey:  S.emailjsPublicKey,
         emailjsServiceId:  S.emailjsServiceId,
         emailjsTemplateId: S.emailjsTemplateId,
@@ -1889,11 +1864,7 @@ async function loadS(){
   // Always load localStorage first for instant display
   try{
     const d = localStorage.getItem('ct_crm_v2');
-    if(d){
-      const parsed = JSON.parse(d);
-      delete parsed.firebaseConfig; // siempre usar la config hardcodeada
-      Object.assign(S, parsed);
-    }
+    if(d) Object.assign(S, JSON.parse(d));
   } catch(e){}
 
   // Try Firebase
@@ -1909,10 +1880,7 @@ async function loadS(){
       if(data.userEvents)     S.userEvents     = JSON.parse(data.userEvents);
       if(data.config){
         const cfg = JSON.parse(data.config);
-        delete cfg.firebaseConfig; // siempre usar la config hardcodeada
-        const keepFirebase = S.firebaseConfig;
         Object.assign(S, cfg);
-        S.firebaseConfig = keepFirebase;
       }
       // Update localStorage with cloud data
       localStorage.setItem('ct_crm_v2', JSON.stringify(S));
@@ -1950,16 +1918,10 @@ function showRecuperar(){ document.getElementById('login-page').style.display='n
 function doLogin(){
   const u = v('login-user').trim();
   const p = v('login-pass').trim();
-  // Si Firebase aún no cargó los datos, esperar
-  if(!S.adminPass){
-    showToast('Cargando datos... intentá en un momento','error');
-    setTimeout(()=>doLogin(), 2000);
-    return;
-  }
   // Check admin master
   if(u===S.adminUser && p===S.adminPass){ loginOk({id:'admin',nombre:'Administrador',rol:'admin',user:u}); return; }
   // Check users
-  const usr = (S.users||[]).find(x => x.user===u && x.pass===p);
+  const usr = S.users.find(x => x.user===u && x.pass===p);
   if(usr){
     if(usr.accesoBloqueado){ showToast('Tu acceso está deshabilitado. Contactá al administrador.','error'); return; }
     if(usr.pending||!usr.pass){ showToast('Tu cuenta aún no fue activada. Contactá al administrador.','error'); return; }
@@ -1987,7 +1949,7 @@ function loginOk(usr){
 function enviarRecupero(){
   const email = v('rec-email').trim();
   if(!email){ showToast('Ingresá tu email','error'); return; }
-  const usr = (S.users||[]).find(u => u.email===email);
+  const usr = S.users.find(u => u.email===email);
   showToast('Si el email existe, recibirás las instrucciones. (Demo: verificar consola)');
   console.log('Recupero solicitado para:', email, usr ? '— usuario encontrado' : '— no encontrado');
   showLogin();
@@ -2045,7 +2007,7 @@ function fillNegocioAdmin(){
 function limpiarFicha(){
   S.currentClienteId = null;
   document.getElementById('cliente-id-badge').textContent = 'NUEVO';
-  ['c-nombre','c-apellido','c-domicilio','c-localidad','c-cp','c-provincia','c-whatsapp','c-contacto','c-email','c-dni','c-cuit-p','c-cuit-m','c-cuit-s','c-iva-custom'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  ['c-nombre','c-domicilio','c-localidad','c-cp','c-provincia','c-whatsapp','c-contacto','c-email','c-dni','c-cuit-p','c-cuit-m','c-cuit-s','c-iva-custom'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
   document.getElementById('c-iva').value='Consumidor Final';
   document.getElementById('c-canal').value='';
   document.getElementById('c-doc-tipo').value='dni';
@@ -2060,20 +2022,13 @@ function getClienteData(){
   else { dni=v('c-cuit-p')+'-'+v('c-cuit-m')+'-'+v('c-cuit-s'); }
   let iva = document.getElementById('c-iva').value;
   if(iva==='otro') iva = v('c-iva-custom') || 'Otro';
-  const apellido = v('c-apellido').trim();
-  const nombreBase = v('c-nombre').trim();
-  const nombreCompleto = apellido ? nombreBase + ' ' + apellido : nombreBase;
-  return { nombre:nombreCompleto, apellido, fn:nombreBase, ln:apellido, dni, docTipo, domicilio:v('c-domicilio'), localidad:v('c-localidad'), cp:v('c-cp'), provincia:v('c-provincia'), iva, whatsapp:v('c-whatsapp'), contacto:v('c-contacto'), email:v('c-email'), canal:document.getElementById('c-canal').value };
+  return { nombre:v('c-nombre'), dni, docTipo, domicilio:v('c-domicilio'), localidad:v('c-localidad'), cp:v('c-cp'), provincia:v('c-provincia'), iva, whatsapp:v('c-whatsapp'), contacto:v('c-contacto'), email:v('c-email'), canal:document.getElementById('c-canal').value };
 }
 
 function fillFicha(c){
   S.currentClienteId = c.id;
   document.getElementById('cliente-id-badge').textContent = 'ID: '+c.id;
-  // Si tiene fn/ln separados los usa, sino divide el nombre completo
-  const fn = c.fn || (c.nombre||'').split(' ')[0] || '';
-  const ln = c.ln || c.apellido || (c.nombre||'').split(' ').slice(1).join(' ') || '';
-  setv('c-nombre', fn); setv('c-apellido', ln);
-  setv('c-domicilio',c.domicilio); setv('c-localidad',c.localidad); setv('c-cp',c.cp||'');
+  setv('c-nombre',c.nombre); setv('c-domicilio',c.domicilio); setv('c-localidad',c.localidad); setv('c-cp',c.cp||'');
   setv('c-provincia',c.provincia); setv('c-whatsapp',c.whatsapp); setv('c-contacto',c.contacto); setv('c-email',c.email);
   document.getElementById('c-canal').value = c.canal||'';
   // DNI/CUIT
@@ -2250,7 +2205,6 @@ function verComprobante(id){
       }
       ${(()=>{ const idxCount = S.eventos.filter(e=>(e.tipo==='DOCUMENTO'&&e.data?.notaIndexada===id)||(e.tipo==='PEDIDO_LISTO'&&e.data?.notaId===id)).length; return idxCount>0?`<button class="btn btn-secondary btn-sm" onclick="verIndexaciones('${id}')">📎 Ver indexaciones (${idxCount})</button>`:''; })()}
       <button class="btn btn-secondary btn-sm" onclick="closeModal('modal-ver-evento');openIndexarDocumentoEnNota('${id}')">🔗 Indexar</button>
-      <button class="btn btn-sm" style="background:var(--yellow-dim);color:var(--yellow);border:1px solid var(--yellow);" onclick="closeModal('modal-ver-evento');discriminarNota('${id}')">📊 Discriminar</button>
       ${facturaDoc?`<button class="btn btn-secondary btn-sm" onclick="verComprobante('${facturaDoc.id}')">📄 Ver Factura</button>`:''}
       ${isEditado&&nuevoEv?`<button class="btn btn-primary btn-sm" onclick="closeModal('modal-ver-evento');verComprobante('${nuevoEv.id}')">Ver nuevo →</button>`:''}`;
 
@@ -3029,7 +2983,7 @@ function calcFalta(prefix){
   const el = document.getElementById(prefix+'-falta');
   if(el){
     el.textContent='$'+fmtN(falta);
-    el.style.color = '';
+    el.style.color = falta>0 ? 'var(--accent)' : 'var(--green)';
     el.className='total-display '+(falta>0?'falta-pending':'falta-ok');
   }
 }
@@ -3261,13 +3215,11 @@ function guardarCompra(imprimir){
     facturacion:{ iva:document.getElementById('fac-compra-iva').value, cuit:v('fac-compra-cuit'), nombre:v('fac-compra-nombre'), dir:v('fac-compra-dir') },
     creadoPor: S.currentUser?.nombreCompleto || S.currentUser?.nombre || 'Administrador',
   };
-  // Check if editing an existing event — resolver ANTES del push
+  // Check if editing an existing event
   const editingId = document.getElementById('modal-compra').getAttribute('data-editing');
-  let metaEventIdCompra = null;
   if(editingId){
     const orig=S.eventos.find(e=>e.id===editingId);
     if(orig) orig.editadoPor=id;
-    metaEventIdCompra = getRootIdConsulta(editingId);
     document.getElementById('modal-compra').removeAttribute('data-editing');
   }
   S.eventos.push({ id, clienteId:S.currentClienteId, tipo:'COMPRA', nombre:items[0].desc+(items.length>1?` +${items.length-1}`:''), fecha:hoy(), timestamp:ahoraTimestamp(), data, esEdicionDe:editingId||null });
@@ -3277,14 +3229,19 @@ function guardarCompra(imprimir){
   // Meta: si es edición, preguntar si actualizar; si es nueva, disparar siempre
   if(S.metaConfig?.pixelId){
     if(editingId){
+      // Usar el event_id de la nota ORIGINAL para que Meta deduplique
+      const orig = S.eventos.find(e=>e.id===editingId);
+      const origIdConsulta = orig?.data?.idConsulta||'';
+      // Usar siempre el ID de la nota original para deduplicación en Meta
+      const metaEventId = origIdConsulta || editingId;
       mostrarConfirmarAccion(
         '📊 ¿Actualizar evento en Meta?',
-        `El total cambió. ¿Querés enviar el evento Purchase actualizado a Meta con el nuevo total ($${fmtN(data.total)})? Se usará el mismo Event ID (${metaEventIdCompra}) para que Meta reemplace el anterior.`,
-        ()=>dispararEventoPurchase({total:data.total, nombre:items[0]?.desc||'', eventIdOverride: metaEventIdCompra}, cliente, 'compra'),
+        `El total cambió. ¿Querés enviar el evento Purchase actualizado a Meta con el nuevo total ($${fmtN(data.total)})? Se usará el mismo Event ID (${metaEventId}) para que Meta reemplace el anterior.`,
+        ()=>dispararEventoPurchase({total:data.total, nombre:items[0]?.desc||'', eventIdOverride: metaEventId}, cliente, 'compra'),
         false
       );
     } else {
-      dispararEventoPurchase({total:data.total, nombre:items[0]?.desc||'', notaId:id}, cliente, 'compra');
+      dispararEventoPurchase({total:data.total, nombre:items[0]?.desc||''}, cliente, 'compra');
     }
   }
   if(imprimir) setTimeout(()=>imprimirComprobante('COMPRA',id,cliente,data,null),300);
@@ -3329,11 +3286,9 @@ function guardarServicio(imprimir){
     creadoPor: S.currentUser?.nombreCompleto || S.currentUser?.nombre || 'Administrador',
   };
   const editingId = document.getElementById('modal-servicio').getAttribute('data-editing');
-  let metaEventIdServ = null;
   if(editingId){
     const orig=S.eventos.find(e=>e.id===editingId);
     if(orig) orig.editadoPor=id;
-    metaEventIdServ = getRootIdConsulta(editingId);
     document.getElementById('modal-servicio').removeAttribute('data-editing');
   }
   S.eventos.push({ id, clienteId:S.currentClienteId, tipo:'SERVICIO', nombre:items.length?items[0].desc:(comps.length?comps[0].componente:'Servicio'), fecha:hoy(), timestamp:ahoraTimestamp(), data, esEdicionDe:editingId||null });
@@ -3342,14 +3297,17 @@ function guardarServicio(imprimir){
   showToast('✅ Servicio guardado · '+id);
   if(S.metaConfig?.pixelId){
     if(editingId){
+      const orig = S.eventos.find(e=>e.id===editingId);
+      const origIdConsulta = orig?.data?.idConsulta||'';
+      const metaEventId = origIdConsulta || editingId;
       mostrarConfirmarAccion(
         '📊 ¿Actualizar evento en Meta?',
-        `El total cambió. ¿Querés enviar el evento Purchase actualizado a Meta con el nuevo total ($${fmtN(data.total)})? Se usará el mismo Event ID (${metaEventIdServ}) para que Meta reemplace el anterior.`,
-        ()=>dispararEventoPurchase({total:data.total, nombre:items[0]?.desc||'', eventIdOverride: metaEventIdServ}, cliente, 'serv'),
+        `El total cambió. ¿Querés enviar el evento Purchase actualizado a Meta con el nuevo total ($${fmtN(data.total)})? Se usará el mismo Event ID (${metaEventId}) para que Meta reemplace el anterior.`,
+        ()=>dispararEventoPurchase({total:data.total, nombre:items[0]?.desc||'', eventIdOverride: metaEventId}, cliente, 'serv'),
         false // no requiere contraseña de admin
       );
     } else {
-      dispararEventoPurchase({total:data.total, nombre:items[0]?.desc||'', notaId:id}, cliente, 'serv');
+      dispararEventoPurchase({total:data.total, nombre:items[0]?.desc||''}, cliente, 'serv');
     }
   }
   if(imprimir) setTimeout(()=>imprimirComprobante('SERVICIO',id,cliente,data,null),300);
@@ -3658,16 +3616,6 @@ async function buscarDatosTecnicosMeta(prefix){
   }
 }
 
-function getRootIdConsulta(notaId){
-  let ev = S.eventos.find(e => e.id === notaId);
-  while(ev?.esEdicionDe){
-    const parent = S.eventos.find(e => e.id === ev.esEdicionDe);
-    if(!parent) break;
-    ev = parent;
-  }
-  return ev?.data?.idConsulta || ev?.id || notaId;
-}
-
 async function sha256Meta(str){
   if(!str) return undefined;
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str.toLowerCase().trim()));
@@ -3687,13 +3635,13 @@ async function dispararEventoPurchase(eventData, clienteData, prefix){
   const userAgent= document.getElementById(prefix+'-meta-ua').value.trim();
   const adId     = document.getElementById(prefix+'-meta-adid').value.trim();
   const campaign = document.getElementById(prefix+'-meta-campaign').value.trim();
-  const orderId  = eventData.eventIdOverride || eventData.notaId || leadId || ('AUTO-'+(clienteData?.whatsapp||'').slice(-4)+'-'+Date.now().toString(36).toUpperCase());
+  const orderId  = eventData.eventIdOverride || leadId || ('AUTO-'+(clienteData?.whatsapp||'').slice(-4)+'-'+Date.now().toString(36).toUpperCase());
   const eventTime= Math.floor(Date.now()/1000);
   const tel      = (clienteData?.whatsapp||'').replace(/\D/g,'');
   const [h_em,h_fn,h_ln,h_ph,h_zp,h_st,h_ct,h_country] = await Promise.all([
     sha256Meta(clienteData?.email||''),
-    sha256Meta(clienteData?.fn || (clienteData?.nombre||'').split(' ')[0]),
-    sha256Meta(clienteData?.ln || clienteData?.apellido || (clienteData?.nombre||'').split(' ').slice(1).join(' ')),
+    sha256Meta((clienteData?.nombre||'').split(' ')[0]),
+    sha256Meta((clienteData?.nombre||'').split(' ').slice(1).join(' ')),
     sha256Meta(tel),
     sha256Meta(clienteData?.cp||''),
     sha256Meta(clienteData?.provincia||''),
@@ -3708,12 +3656,11 @@ async function dispararEventoPurchase(eventData, clienteData, prefix){
     ...(clientIp ? {client_ip_address:clientIp} : {}),
     ...(userAgent ? {client_user_agent:userAgent} : {}),
   };
-  const actionSource = document.getElementById(prefix+'-action-source')?.value || 'chat';
   const payload = { data:[{
     event_name:    'Purchase',
     event_time:    eventTime,
-    event_id:      orderId,
-    action_source: actionSource,
+    event_id:      `${orderId}-purchase-${eventTime}`,
+    action_source: 'other',
     user_data,
     custom_data:{
       content_name:  eventData.nombre||'',
@@ -3742,108 +3689,6 @@ async function dispararEventoPurchase(eventData, clienteData, prefix){
     console.error('Meta fetch error:', e);
   }
 }
-// ══════════════════════════════════════════════
-//  DISCRIMINAR NOTA (Sin 10,5% IVA)
-// ══════════════════════════════════════════════
-function discriminarNota(notaId){
-  const ev = S.eventos.find(e=>e.id===notaId);
-  if(!ev) return;
-  const cliente = S.clientes.find(c=>c.id===ev.clienteId);
-  const data = ev.data;
-  const allItems = data.items||[];
-  const n = S.negocio;
-  const logoHTML = S.logo?`<img src="${S.logo}" style="max-height:55px;max-width:110px;object-fit:contain;">`:'<div style="font-weight:900;font-size:16px;">CASA<span style="color:#e83a2f;">TECNO</span></div>';
-  const tituloTipo = ev.tipo==='COMPRA'?'NOTA DE PEDIDO':'SERVICIO';
-
-  // Build items rows with Sin 10,5% column
-  let itemsHTML='';
-  let totalSinIVA=0;
-  let totalConIVA=0;
-  allItems.forEach((item,i)=>{
-    const cant  = parseFloat(item.cant)||1;
-    const val   = parseN(item.val);
-    const tot   = cant*val;
-    const sinIVA = val/1.105*cant;
-    totalSinIVA += sinIVA;
-    totalConIVA += tot;
-    itemsHTML+=`<tr>
-      <td style="padding:4px 6px;border:1px solid #ddd;">${i+1}.</td>
-      <td style="padding:4px 6px;border:1px solid #ddd;">${item.desc}</td>
-      <td style="padding:4px 6px;border:1px solid #ddd;text-align:center;">${cant}</td>
-      <td style="padding:4px 6px;border:1px solid #ddd;text-align:right;">$${fmtN(val)}</td>
-      <td style="padding:4px 6px;border:1px solid #ddd;text-align:right;color:#e07b00;font-weight:600;">$${fmtN(sinIVA)}</td>
-      <td style="padding:4px 6px;border:1px solid #ddd;text-align:right;font-weight:600;">$${fmtN(tot)}</td>
-    </tr>`;
-  });
-  const ivaImporte = totalConIVA - totalSinIVA;
-
-  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Discriminado ${notaId}</title>
-  <style>
-    @page{size:A4;margin:13mm 11mm;}
-    body{font-family:Arial,sans-serif;font-size:11px;color:#111;margin:0;}
-    strong{font-weight:700;}
-    .col-title{font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:0.7px;color:#555;margin-bottom:5px;padding-bottom:3px;border-bottom:1px solid #ddd;}
-  </style></head><body>
-  <table style="width:100%;margin-bottom:9px;border:1px solid #bbb;border-radius:5px;"><tr>
-    <td style="padding:8px 10px;width:55%;">${logoHTML}<div style="font-size:10px;margin-top:3px;"><div><strong>Razón Social:</strong> ${n.razon} &nbsp; <strong>CUIT:</strong> ${n.cuit}</div><div><strong>Tel:</strong> ${n.tel} &nbsp; <strong>Mail:</strong> ${n.mail}</div><div><strong>Dir:</strong> ${n.dir}, ${n.loc} (${n.cp})</div></div></td>
-    <td style="padding:8px 10px;text-align:right;vertical-align:top;"><div style="font-weight:700;font-size:12px;text-transform:uppercase;">${tituloTipo} — DISCRIMINADO</div><div style="font-size:10px;margin-top:3px;"><strong>FECHA:</strong> ${hoy()}</div></td>
-  </tr></table>
-  <div style="font-size:18px;font-weight:900;text-transform:uppercase;margin-bottom:9px;">${tituloTipo} ID: ${notaId} — <span style="color:#e07b00;">IVA DISCRIMINADO (10,5%)</span></div>
-  <div style="border:1px solid #bbb;border-radius:5px;padding:9px;margin-bottom:10px;font-size:11px;">
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-      <div><div class="col-title">Datos del Cliente</div>
-        <div><strong>Nombre:</strong> ${cliente?.nombre||''}</div>
-        <div><strong>DNI/CUIT:</strong> ${cliente?.dni||''}</div>
-        <div><strong>Domic.:</strong> ${cliente?.domicilio||''}</div>
-      </div>
-      <div><div class="col-title">Localidad / Contacto</div>
-        <div><strong>Localidad:</strong> ${cliente?.localidad||''}</div>
-        <div><strong>Provincia:</strong> ${cliente?.provincia||''}</div>
-        <div><strong>Tel:</strong> ${cliente?.whatsapp||''}</div>
-      </div>
-    </div>
-  </div>
-  <table style="width:100%;border-collapse:collapse;margin-bottom:10px;font-size:11px;">
-    <thead><tr style="background:#f5f5f5;">
-      <th style="padding:5px 6px;border:1px solid #ddd;text-align:left;">#</th>
-      <th style="padding:5px 6px;border:1px solid #ddd;text-align:left;">Descripción</th>
-      <th style="padding:5px 6px;border:1px solid #ddd;text-align:center;">Cant.</th>
-      <th style="padding:5px 6px;border:1px solid #ddd;text-align:right;">Valor</th>
-      <th style="padding:5px 6px;border:1px solid #ddd;text-align:right;color:#e07b00;">Sin 10,5%</th>
-      <th style="padding:5px 6px;border:1px solid #ddd;text-align:right;">Total</th>
-    </tr></thead>
-    <tbody>${itemsHTML}</tbody>
-  </table>
-  <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
-    <table style="border-collapse:collapse;font-size:12px;min-width:260px;">
-      <tr><td style="padding:4px 10px;border:1px solid #ddd;color:#555;">Neto gravado (sin IVA)</td><td style="padding:4px 10px;border:1px solid #ddd;text-align:right;font-weight:600;color:#e07b00;">$${fmtN(totalSinIVA)}</td></tr>
-      <tr><td style="padding:4px 10px;border:1px solid #ddd;color:#555;">IVA 10,5%</td><td style="padding:4px 10px;border:1px solid #ddd;text-align:right;">$${fmtN(ivaImporte)}</td></tr>
-      <tr style="background:#f5f5f5;"><td style="padding:5px 10px;border:1px solid #bbb;font-weight:800;">TOTAL</td><td style="padding:5px 10px;border:1px solid #bbb;text-align:right;font-weight:800;font-size:13px;">$${fmtN(totalConIVA)}</td></tr>
-    </table>
-  </div>
-  <div style="font-size:9px;color:#888;border-top:1px solid #ddd;padding-top:6px;">Documento discriminado generado internamente — referencia nota original: ${notaId}</div>
-  </body></html>`;
-
-  // Abrir en ventana nueva para imprimir/descargar
-  const win = window.open('','_blank');
-  if(win){ win.document.write(html); win.document.close(); win.focus(); win.print(); }
-
-  // Indexar automáticamente a la nota original como DOCUMENTO interno
-  const docId = 'DISC-'+notaId+'-'+Date.now().toString(36).toUpperCase();
-  S.eventos.push({
-    id: docId,
-    clienteId: ev.clienteId,
-    tipo: 'DOCUMENTO',
-    nombre: 'Discriminado IVA 10,5% — ref. '+notaId,
-    fecha: hoy(),
-    timestamp: ahoraTimestamp(),
-    data: { notaIndexada: notaId, discriminado: true, fileName: 'Discriminado-'+notaId+'.pdf' }
-  });
-  saveS();
-  renderHistorial();
-  showToast('📊 Discriminado generado e indexado a '+notaId);
-}
-
 function exportarDatos(){
   const datos = JSON.stringify(S, null, 2);
   const blob = new Blob([datos], {type:'application/json'});
@@ -5231,7 +5076,10 @@ function _buildComprobanteHTML(tipo, id, cliente, data, editadoPorId){
   }
   const falta=parseFloat(data.falta)||0;
   let faltaHTML=`<div style="font-size:15px;font-weight:800;color:${falta>0?'#e8382f':'#27ae60'};">FALTAN: $${fmtN(falta)}</div>`;
-  if(falta>0) faltaHTML+=`<div style="margin-top:8px;font-size:9px;color:#e8382f;line-height:1.7;"><div>• <strong>SEÑA:</strong> Usted abona el 42% total. El saldo queda sujeto a subas en el dólar.</div><div>• <strong>MORA 1:</strong> Pasados 10 días corridos del aviso de entrega comienzan a correr intereses IPC+5%.</div><div>• <strong>MORA 2:</strong> Pasados 30 días corridos de la fecha de pedido usted pierde la seña.</div></div>`;
+  if(falta>0){
+    const pctAbonado = data.total>0 ? Math.round((data.abona||0)*100/data.total) : 0;
+    faltaHTML+=`<div style="margin-top:8px;font-size:9px;color:#e8382f;line-height:1.7;"><div>• <strong>SEÑA:</strong> Usted abona el ${pctAbonado}% del total. El saldo queda sujeto a subas en el dólar.</div><div>• <strong>MORA 1:</strong> Pasados 10 días corridos del aviso de entrega comienzan a correr intereses IPC+5%.</div><div>• <strong>MORA 2:</strong> Pasados 30 días corridos de la fecha de pedido usted pierde la seña.</div></div>`;
+  }
   const fac=data.facturacion;
   // Facturación: usa datos propios si existen, si no repite los del cliente
   const facNombre = (fac?.nombre) || cliente?.nombre || '';
