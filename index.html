@@ -388,12 +388,11 @@ textarea.form-input{resize:vertical;min-height:60px;}
     <div class="card-title">Datos Personales</div>
     <div class="form-grid">
       <div class="form-group">
-        <label class="form-label">Nombre *</label>
-        <input class="form-input" id="c-nombre" type="text" placeholder="Nombre">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Apellido *</label>
-        <input class="form-input" id="c-apellido" type="text" placeholder="Apellido">
+        <label class="form-label">Nombre y Apellido *</label>
+        <div style="display:flex;gap:6px;">
+          <input class="form-input" id="c-nombre" type="text" placeholder="Nombre" style="flex:1;">
+          <input class="form-input" id="c-apellido" type="text" placeholder="Apellido" style="flex:1;">
+        </div>
       </div>
 
       <!-- DNI / CUIT -->
