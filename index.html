@@ -388,8 +388,12 @@ textarea.form-input{resize:vertical;min-height:60px;}
     <div class="card-title">Datos Personales</div>
     <div class="form-grid">
       <div class="form-group">
-        <label class="form-label">Nombre Completo *</label>
-        <input class="form-input" id="c-nombre" type="text" placeholder="Apellido y nombre">
+        <label class="form-label">Nombre *</label>
+        <input class="form-input" id="c-nombre" type="text" placeholder="Nombre">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Apellido *</label>
+        <input class="form-input" id="c-apellido" type="text" placeholder="Apellido">
       </div>
 
       <!-- DNI / CUIT -->
@@ -2007,7 +2011,7 @@ function fillNegocioAdmin(){
 function limpiarFicha(){
   S.currentClienteId = null;
   document.getElementById('cliente-id-badge').textContent = 'NUEVO';
-  ['c-nombre','c-domicilio','c-localidad','c-cp','c-provincia','c-whatsapp','c-contacto','c-email','c-dni','c-cuit-p','c-cuit-m','c-cuit-s','c-iva-custom'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  ['c-nombre','c-apellido','c-domicilio','c-localidad','c-cp','c-provincia','c-whatsapp','c-contacto','c-email','c-dni','c-cuit-p','c-cuit-m','c-cuit-s','c-iva-custom'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
   document.getElementById('c-iva').value='Consumidor Final';
   document.getElementById('c-canal').value='';
   document.getElementById('c-doc-tipo').value='dni';
@@ -2022,13 +2026,18 @@ function getClienteData(){
   else { dni=v('c-cuit-p')+'-'+v('c-cuit-m')+'-'+v('c-cuit-s'); }
   let iva = document.getElementById('c-iva').value;
   if(iva==='otro') iva = v('c-iva-custom') || 'Otro';
-  return { nombre:v('c-nombre'), dni, docTipo, domicilio:v('c-domicilio'), localidad:v('c-localidad'), cp:v('c-cp'), provincia:v('c-provincia'), iva, whatsapp:v('c-whatsapp'), contacto:v('c-contacto'), email:v('c-email'), canal:document.getElementById('c-canal').value };
+  const nombre = v('c-nombre').trim();
+  const apellido = v('c-apellido').trim();
+  const nombreCompleto = [nombre, apellido].filter(Boolean).join(' ');
+  return { nombre:nombreCompleto, firstName:nombre, lastName:apellido, dni, docTipo, domicilio:v('c-domicilio'), localidad:v('c-localidad'), cp:v('c-cp'), provincia:v('c-provincia'), iva, whatsapp:v('c-whatsapp'), contacto:v('c-contacto'), email:v('c-email'), canal:document.getElementById('c-canal').value };
 }
 
 function fillFicha(c){
   S.currentClienteId = c.id;
   document.getElementById('cliente-id-badge').textContent = 'ID: '+c.id;
-  setv('c-nombre',c.nombre); setv('c-domicilio',c.domicilio); setv('c-localidad',c.localidad); setv('c-cp',c.cp||'');
+  setv('c-nombre', c.firstName || (c.nombre||'').split(' ')[0] || c.nombre||'');
+  setv('c-apellido', c.lastName || (c.nombre||'').split(' ').slice(1).join(' ')||'');
+  setv('c-domicilio',c.domicilio); setv('c-localidad',c.localidad); setv('c-cp',c.cp||'');
   setv('c-provincia',c.provincia); setv('c-whatsapp',c.whatsapp); setv('c-contacto',c.contacto); setv('c-email',c.email);
   document.getElementById('c-canal').value = c.canal||'';
   // DNI/CUIT
@@ -2321,6 +2330,7 @@ function abrirEditarCompra(ev){
   setv('compra-id-badge', newId);
   S.retiraCompra=1;
   document.getElementById('retiras-compra-extra').innerHTML='';
+  const rBtnC=document.querySelector('#panel-retira-compra [onclick*="addRetira"]'); if(rBtnC) rBtnC.textContent='＋ Retira 2';
   document.getElementById('factura-compra-expand').style.display='none';
   resetPagosExtra('compra');
   document.getElementById('compra-items-body').innerHTML='';
@@ -3210,6 +3220,7 @@ function guardarCompra(imprimir){
     recargo:v('compra-recargo'),
     falta: parseN(document.getElementById('compra-falta').textContent),
     retira1:{ nombre:v('compra-r1-nombre'), dni:v('compra-r1-dni') },
+    retiras: getRetiras('compra'),
     envio: envioData,
     modoEnvio: !!envioData,
     facturacion:{ iva:document.getElementById('fac-compra-iva').value, cuit:v('fac-compra-cuit'), nombre:v('fac-compra-nombre'), dir:v('fac-compra-dir') },
@@ -3280,6 +3291,7 @@ function guardarServicio(imprimir){
     recargo:v('serv-recargo'),
     falta: parseN(document.getElementById('serv-falta').textContent),
     retira1:{ nombre:v('serv-r1-nombre'), dni:v('serv-r1-dni') },
+    retiras: getRetiras('serv'),
     envio: envioDataS,
     modoEnvio: !!envioDataS,
     facturacion:{ iva:document.getElementById('fac-serv-iva').value, cuit:v('fac-serv-cuit'), nombre:v('fac-serv-nombre'), dir:v('fac-serv-dir') },
@@ -3317,17 +3329,39 @@ function guardarServicio(imprimir){
 //  RETIRA / EXTRAS
 // ══════════════════════════════════════════════
 function addRetira(prefix){
-  const counter = prefix==='compra' ? ++S.retiraCompra : ++S.retiraServ;
-  const n = counter+1;
-  const container=document.getElementById('retiras-'+prefix+'-extra');
-  const div=document.createElement('div');
+  const container = document.getElementById('retiras-'+prefix+'-extra');
+  const n = container.children.length + 2; // 2, 3, 4...
+  const div = document.createElement('div');
   div.style.marginTop='10px';
+  div.id = prefix+'-retira-extra-'+n;
   div.innerHTML=`<div class="retira-title" style="font-size:14px;">Retira ${n}</div>
     <div class="form-grid" style="max-width:460px;">
-      <div class="form-group"><label class="form-label">Nombre Completo</label><input class="form-input" type="text"></div>
-      <div class="form-group"><label class="form-label">DNI</label><input class="form-input" type="text"></div>
+      <div class="form-group"><label class="form-label">Nombre Completo</label><input class="form-input" id="${prefix}-r${n}-nombre" type="text"></div>
+      <div class="form-group"><label class="form-label">DNI</label><input class="form-input" id="${prefix}-r${n}-dni" type="text"></div>
     </div>`;
   container.appendChild(div);
+  // Update button text
+  const btn = container.closest('.retira-section')?.querySelector('[onclick*="addRetira"]');
+  if(btn) btn.textContent = `＋ Retira ${n+1}`;
+}
+
+function getRetiras(prefix){
+  const retiras = [];
+  // Retira 1 (always)
+  const r1n = v(prefix+'-r1-nombre').trim();
+  const r1d = v(prefix+'-r1-dni').trim();
+  if(r1n||r1d) retiras.push({nombre:r1n, dni:r1d});
+  // Extra retiras
+  const container = document.getElementById('retiras-'+prefix+'-extra');
+  if(container){
+    container.querySelectorAll('[id$="-nombre"]').forEach(inp=>{
+      const n = inp.value.trim();
+      const dniId = inp.id.replace('-nombre','-dni');
+      const d = document.getElementById(dniId)?.value.trim()||'';
+      if(n||d) retiras.push({nombre:n, dni:d});
+    });
+  }
+  return retiras;
 }
 
 function autocompletarRetira(prefix){
@@ -3640,8 +3674,8 @@ async function dispararEventoPurchase(eventData, clienteData, prefix){
   const tel      = (clienteData?.whatsapp||'').replace(/\D/g,'');
   const [h_em,h_fn,h_ln,h_ph,h_zp,h_st,h_ct,h_country] = await Promise.all([
     sha256Meta(clienteData?.email||''),
-    sha256Meta((clienteData?.nombre||'').split(' ')[0]),
-    sha256Meta((clienteData?.nombre||'').split(' ').slice(1).join(' ')),
+    sha256Meta(clienteData?.firstName || (clienteData?.nombre||'').split(' ')[0]),
+    sha256Meta(clienteData?.lastName  || (clienteData?.nombre||'').split(' ').slice(1).join(' ')),
     sha256Meta(tel),
     sha256Meta(clienteData?.cp||''),
     sha256Meta(clienteData?.provincia||''),
@@ -5068,11 +5102,15 @@ function _buildComprobanteHTML(tipo, id, cliente, data, editadoPorId){
       <div style="font-size:11px;"><strong>Dirección:</strong> ${e.dir||''}</div>
       ${e.nombre?`<div style="font-size:11px;"><strong>Recibe:</strong> ${e.nombre}${e.dni?' · DNI: '+e.dni:''}</div>`:''}
     </div>`;
-  } else if(data.retira1?.nombre){
-    retiraHTML=`<div style="margin-top:6px;padding-top:6px;border-top:1px solid #eee;">
-      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px;">Retira</div>
-      <div style="font-size:11px;"><strong>${data.retira1.nombre}</strong>${data.retira1.dni?' · DNI: '+data.retira1.dni:''}</div>
-    </div>`;
+  } else {
+    // Use data.retiras array if available, fallback to retira1
+    const retiras = data.retiras?.length ? data.retiras : (data.retira1?.nombre ? [{nombre:data.retira1.nombre, dni:data.retira1.dni}] : []);
+    if(retiras.length){
+      retiraHTML=`<div style="margin-top:6px;padding-top:6px;border-top:1px solid #eee;">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px;">Retira</div>
+        ${retiras.map((r,i)=>`<div style="font-size:11px;">${retiras.length>1?`<strong>Retira ${i+1}:</strong> `:''}<strong>${r.nombre||''}</strong>${r.dni?' · DNI: '+r.dni:''}</div>`).join('')}
+      </div>`;
+    }
   }
   const falta=parseFloat(data.falta)||0;
   let faltaHTML=`<div style="font-size:15px;font-weight:800;color:${falta>0?'#e8382f':'#27ae60'};">FALTAN: $${fmtN(falta)}</div>`;
