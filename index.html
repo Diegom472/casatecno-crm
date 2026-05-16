@@ -5268,21 +5268,85 @@ function checkComprobanteURL(){
   const params = new URLSearchParams(window.location.search);
   const comprobanteId = params.get('comprobante');
   if(!comprobanteId) return false;
-  // Load state - try localStorage
+
+  // Show loading screen immediately
+  document.body.innerHTML = `
+    <div style="font-family:Arial,sans-serif;text-align:center;padding:60px 20px;color:#555;">
+      <div style="font-size:40px;margin-bottom:16px;">⏳</div>
+      <h2 style="margin-bottom:8px;">Cargando comprobante...</h2>
+      <p style="color:#999;">ID: ${comprobanteId}</p>
+    </div>`;
+
+  // Try localStorage first
   try{ const d=localStorage.getItem('ct_crm_v2'); if(d) Object.assign(S,JSON.parse(d)); } catch(e){}
-  // Also try sessionStorage (Chrome fallback)
   try{ const d=sessionStorage.getItem('ct_crm_v2'); if(d) Object.assign(S,JSON.parse(d)); } catch(e){}
+
   const ev = S.eventos.find(e=>e.id===comprobanteId);
-  if(!ev){
-    document.body.innerHTML = `
-      <div style="font-family:Arial,sans-serif;text-align:center;padding:60px 20px;color:#555;">
-        <div style="font-size:48px;margin-bottom:16px;">📄</div>
-        <h2 style="margin-bottom:8px;">Comprobante no encontrado</h2>
-        <p style="color:#999;">El ID <strong>${comprobanteId}</strong> no existe o fue eliminado.</p>
-        <p style="margin-top:12px;font-size:13px;color:#bbb;">Este link solo funciona cuando el sistema está online en <a href="https://diegom472.github.io/casatecno-crm" style="color:#3498db;">diegom472.github.io/casatecno-crm</a></p>
-      </div>`;
+  if(ev){
+    _renderComprobanteURL(comprobanteId, ev);
     return true;
   }
+
+  // Not found locally — try Firebase
+  try{
+    const localCfg = localStorage.getItem('ct_crm_v2');
+    const cfg = localCfg ? JSON.parse(localCfg)?.firebaseConfig : null;
+    if(cfg?.apiKey && cfg?.projectId){
+      // Load Firebase SDK and fetch
+      _cargarComprobanteDesdFirebase(comprobanteId, cfg);
+    } else {
+      _mostrarComprobanteNoEncontrado(comprobanteId);
+    }
+  } catch(e){
+    _mostrarComprobanteNoEncontrado(comprobanteId);
+  }
+  return true;
+}
+
+function _cargarComprobanteDesdFirebase(comprobanteId, cfg){
+  // Firebase already loaded via CDN scripts
+  try{
+    if(!firebase.apps.length){
+      firebase.initializeApp({
+        apiKey:     cfg.apiKey,
+        authDomain: cfg.projectId+'.firebaseapp.com',
+        projectId:  cfg.projectId,
+        appId:      cfg.appId||''
+      });
+    }
+    const db2 = firebase.firestore();
+    db2.doc('casatecno/datos').get().then(doc=>{
+      if(!doc.exists){ _mostrarComprobanteNoEncontrado(comprobanteId); return; }
+      const data = doc.data();
+      try{
+        if(data.clientes)       S.clientes       = JSON.parse(data.clientes);
+        if(data.eventos)        S.eventos        = JSON.parse(data.eventos);
+        if(data.calificaciones) S.calificaciones = JSON.parse(data.calificaciones);
+        if(data.config){
+          const c2 = JSON.parse(data.config);
+          Object.assign(S, c2);
+        }
+      } catch(e){}
+      const ev = S.eventos.find(e=>e.id===comprobanteId);
+      if(ev){ _renderComprobanteURL(comprobanteId, ev); }
+      else { _mostrarComprobanteNoEncontrado(comprobanteId); }
+    }).catch(()=>_mostrarComprobanteNoEncontrado(comprobanteId));
+  } catch(e){
+    _mostrarComprobanteNoEncontrado(comprobanteId);
+  }
+}
+
+function _mostrarComprobanteNoEncontrado(comprobanteId){
+  document.body.innerHTML = `
+    <div style="font-family:Arial,sans-serif;text-align:center;padding:60px 20px;color:#555;">
+      <div style="font-size:48px;margin-bottom:16px;">📄</div>
+      <h2 style="margin-bottom:8px;">Comprobante no encontrado</h2>
+      <p style="color:#999;">El ID <strong>${comprobanteId}</strong> no existe o fue eliminado.</p>
+      <p style="margin-top:12px;font-size:13px;color:#bbb;">Si el problema persiste, contactá a Casa Tecno.</p>
+    </div>`;
+}
+
+function _renderComprobanteURL(comprobanteId, ev){
   const cliente = S.clientes.find(c=>c.id===ev.clienteId);
   let html='';
   if(ev.tipo==='COMPRA'||ev.tipo==='SERVICIO'){
@@ -5297,16 +5361,14 @@ function checkComprobanteURL(){
         <p style="color:#888;">Fecha: ${ev.fecha}</p>
         ${ev.data?.url?`<a href="${ev.data.url}" target="_blank" style="display:inline-block;margin-top:20px;padding:12px 24px;background:#3498db;color:#fff;border-radius:6px;text-decoration:none;">🔗 Abrir archivo</a>`:''}
       </div>`;
-    return true;
+    return;
   }
-  // Remove auto-print, add print button
   html = html.replace('<script>window.onload=function(){window.print();}<\/script>', `
     <div style="position:fixed;top:16px;right:16px;z-index:9999;display:flex;gap:8px;">
       <button onclick="window.print()" style="padding:10px 20px;background:#e83a2f;color:#fff;border:none;border-radius:6px;font-family:Arial,sans-serif;font-size:14px;font-weight:700;cursor:pointer;">🖨️ Imprimir / Guardar PDF</button>
     </div>
     <style>@media print{button,div[style*="position:fixed"]{display:none!important;}}</style>`);
   document.open(); document.write(html); document.close();
-  return true;
 }
 
 // ══════════════════════════════════════════════
