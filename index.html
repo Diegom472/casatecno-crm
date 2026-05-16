@@ -5287,31 +5287,31 @@ function checkComprobanteURL(){
     return true;
   }
 
-  // Not found locally — try Firebase
+  // Not found locally — always try Firebase with hardcoded config
   try{
     const localCfg = localStorage.getItem('ct_crm_v2');
     const cfg = localCfg ? JSON.parse(localCfg)?.firebaseConfig : null;
-    if(cfg?.apiKey && cfg?.projectId){
-      // Load Firebase SDK and fetch
-      _cargarComprobanteDesdFirebase(comprobanteId, cfg);
-    } else {
-      _mostrarComprobanteNoEncontrado(comprobanteId);
-    }
+    _cargarComprobanteDesdFirebase(comprobanteId, cfg);
   } catch(e){
-    _mostrarComprobanteNoEncontrado(comprobanteId);
+    _cargarComprobanteDesdFirebase(comprobanteId, null);
   }
   return true;
 }
 
 function _cargarComprobanteDesdFirebase(comprobanteId, cfg){
-  // Firebase already loaded via CDN scripts
+  // Use hardcoded config as fallback if localStorage config not available
+  const firebaseCfg = (cfg?.apiKey) ? cfg : {
+    apiKey:    'AIzaSyDMxyLNtPznVMAkg-fc9000XdoAqu8WS0U',
+    projectId: 'ct-usuarios-clientes',
+    appId:     '1:538162661061:web:0f38ccb93feaf2cdb212ac'
+  };
   try{
     if(!firebase.apps.length){
       firebase.initializeApp({
-        apiKey:     cfg.apiKey,
-        authDomain: cfg.projectId+'.firebaseapp.com',
-        projectId:  cfg.projectId,
-        appId:      cfg.appId||''
+        apiKey:     firebaseCfg.apiKey,
+        authDomain: firebaseCfg.projectId+'.firebaseapp.com',
+        projectId:  firebaseCfg.projectId,
+        appId:      firebaseCfg.appId||''
       });
     }
     const db2 = firebase.firestore();
