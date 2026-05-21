@@ -4140,35 +4140,66 @@ function seleccionarDiaHistorial(fecha){
   renderBalance();
 }
 
-function verDetalleOperador(nombreEnc, fecha){
-  const nombre=decodeURIComponent(nombreEnc);
-  const eventos=S.eventos.filter(e=>e.fecha===fecha&&(e.data?.creadoPor===nombre));
-  if(!eventos.length){ showToast('Sin eventos para este operador en esa fecha'); return; }
-  const usr=S.users.find(u=>u.nombre===nombre||u.nombreCompleto===nombre);
-  let html=`<div style="font-size:13px;margin-bottom:12px;padding:8px 12px;background:var(--bg3);border-radius:var(--radius);">
-    <strong>${nombre}</strong>${usr?.sucursal?' · '+usr.sucursal:''} · ${fecha}
+function verDetalleOperador(nombreEnc, rangoTitulo){
+  const nombre = decodeURIComponent(nombreEnc);
+  // Get current date range
+  const rango = getRangoFechas();
+  const desde = rango.desde; const hasta = rango.hasta;
+  const eventos = S.eventos.filter(e=>{
+    if(!e.fecha) return false;
+    if(e.esBorrador||e.editadoPor) return false;
+    if(e.data?.creadoPor !== nombre) return false;
+    if(desde&&hasta&&!fechaEnRango(e.fecha,desde,hasta)) return false;
+    return true;
+  }).slice().reverse(); // newest first
+
+  if(!eventos.length){ showToast('Sin eventos para este operador en el período'); return; }
+  const usr = S.users.find(u=>u.nombre===nombre||u.nombreCompleto===nombre);
+  const totalOp = eventos.filter(e=>e.tipo==='COMPRA'||e.tipo==='SERVICIO').reduce((a,e)=>a+(parseFloat(e.data?.total)||0),0);
+
+  let html=`<div style="padding:10px 14px;background:var(--bg3);border-radius:var(--radius);margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;">
+    <div>
+      <div style="font-weight:700;font-size:15px;">${nombre}${usr?.sucursal?' <span style="font-size:12px;color:var(--text3);">('+usr.sucursal+')</span>':''}</div>
+      <div style="font-size:12px;color:var(--text3);">${desde===hasta?desde:desde+' al '+hasta}</div>
+    </div>
+    <div style="font-size:20px;font-weight:900;color:var(--accent);">$${fmtN(totalOp)}</div>
   </div>`;
-  html+=eventos.slice().reverse().map(e=>{
-    const cliente=S.clientes.find(c=>c.id===e.clienteId);
-    const color=e.tipo==='COMPRA'?'var(--green)':e.tipo==='SERVICIO'?'var(--blue)':'var(--yellow)';
-    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:var(--bg3);border-radius:var(--radius);margin-bottom:6px;cursor:pointer;border:1px solid var(--border);" onclick="abrirEventoDesdeBalance('${e.clienteId}','${e.id}')" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
-      <div>
-        <div style="font-size:11px;font-weight:700;color:${color};">${e.tipo}</div>
-        <div style="font-size:13px;">${e.nombre}</div>
-        <div style="font-size:11px;color:var(--text3);">${cliente?.nombre||'—'}${e.timestamp?' · '+e.timestamp:''}</div>
+
+  html += eventos.map(e=>{
+    const cliente = S.clientes.find(c=>c.id===e.clienteId);
+    const color = e.tipo==='COMPRA'?'var(--green)':e.tipo==='SERVICIO'?'var(--blue)':e.tipo==='PEDIDO_LISTO'?'#27ae60':'var(--yellow)';
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:var(--bg3);border-radius:var(--radius);margin-bottom:6px;cursor:pointer;border:1px solid var(--border);transition:border-color 0.15s;"
+      onclick="abrirEventoDesdeBalance('${e.clienteId}','${e.id}')"
+      onmouseover="this.style.borderColor='var(--accent)'"
+      onmouseout="this.style.borderColor='var(--border)'">
+      <div style="flex:1;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:2px;">
+          <span style="font-size:10px;font-weight:700;color:${color};text-transform:uppercase;">${e.tipo}</span>
+          <span style="font-size:10px;color:var(--text3);">${e.fecha}${e.timestamp?' · '+e.timestamp:''}</span>
+        </div>
+        <div style="font-size:13px;font-weight:600;">${e.nombre}</div>
+        <div style="font-size:11px;color:var(--text3);">${cliente?.nombre||'—'}</div>
       </div>
-      <div style="font-size:14px;font-weight:700;color:var(--accent);">${e.data?.total?'$'+fmtN(e.data.total):''}</div>
+      <div style="text-align:right;">
+        <div style="font-size:15px;font-weight:800;color:var(--accent);">${e.data?.total?'$'+fmtN(e.data.total):''}</div>
+        <div style="font-size:10px;color:var(--text3);">Ver →</div>
+      </div>
     </div>`;
   }).join('');
-  document.getElementById('ver-evento-title').innerHTML=`📊 Detalle — ${nombre} <button class="modal-close" onclick="closeModal('modal-ver-evento')">✕</button>`;
+
+  document.getElementById('ver-evento-title').innerHTML=`📊 ${nombre} <button class="modal-close" onclick="closeModal('modal-ver-evento')">✕</button>`;
   document.getElementById('ver-evento-body').innerHTML=html;
   document.getElementById('ver-evento-btns').innerHTML='';
   openModal('modal-ver-evento');
 }
 
 function abrirEventoDesdeBalance(clienteId, eventoId){
-  const c=S.clientes.find(x=>x.id===clienteId);
-  if(c){ fillFicha(c); goTo('cliente'); closeModal('modal-ver-evento'); setTimeout(()=>verEvento(eventoId),300); }
+  const c = S.clientes.find(x=>x.id===clienteId);
+  if(!c){ showToast('Cliente no encontrado','error'); return; }
+  closeModal('modal-ver-evento');
+  fillFicha(c);
+  goTo('cliente');
+  setTimeout(()=>verEvento(eventoId), 350);
 }
 
 function verificarAdmin(){
