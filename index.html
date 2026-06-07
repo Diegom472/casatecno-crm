@@ -2377,6 +2377,7 @@ function abrirEditarServicio(ev){
   S.retiraServ=1;
   document.getElementById('retiras-serv-extra').innerHTML='';
   document.getElementById('factura-serv-expand').style.display='none';
+  document.getElementById('fac-serv-iva').value='Consumidor Final'; setv('fac-serv-cuit',''); setv('fac-serv-nombre',''); setv('fac-serv-dir','');
   resetPagosExtra('serv');
   document.getElementById('comp-body').innerHTML='';
   document.getElementById('serv-items-body').innerHTML='';
@@ -2906,6 +2907,7 @@ function openNuevaCompra(){
   S.retiraCompra=1;
   document.getElementById('retiras-compra-extra').innerHTML='';
   document.getElementById('factura-compra-expand').style.display='none';
+  document.getElementById('fac-compra-iva').value='Consumidor Final'; setv('fac-compra-cuit',''); setv('fac-compra-nombre',''); setv('fac-compra-dir','');
   resetPagosExtra('compra');
   ['compra-abona','compra-abona2','compra-recargo'].forEach(fid=>{const el=document.getElementById(fid);if(el)el.value='';});
   document.getElementById('compra-r1-nombre').value='';
@@ -5140,7 +5142,7 @@ function _buildComprobanteHTML(tipo, id, cliente, data, editadoPorId){
   allItems.forEach((item,i)=>{
     itemsHTML+=`<tr><td style="padding:4px 6px;border:1px solid #ddd;">${i+1}.</td><td style="padding:4px 6px;border:1px solid #ddd;">${item.desc}</td><td style="padding:4px 6px;border:1px solid #ddd;text-align:center;">${item.cant}</td><td style="padding:4px 6px;border:1px solid #ddd;text-align:right;">$${item.val}</td><td style="padding:4px 6px;border:1px solid #ddd;text-align:right;font-weight:600;">$${item.tot}</td></tr>`;
   });
-  for(let i=allItems.length;i<Math.max(6,allItems.length);i++){
+  for(let i=allItems.length;i<Math.max(tipo==='SERVICIO'?allItems.length:6,allItems.length);i++){
     itemsHTML+=`<tr><td style="padding:4px 6px;border:1px solid #ddd;">${i+1}.</td><td style="border:1px solid #ddd;padding:8px;">&nbsp;</td><td style="border:1px solid #ddd;"></td><td style="border:1px solid #ddd;"></td><td style="border:1px solid #ddd;"></td></tr>`;
   }
   let compHTML='';
