@@ -831,6 +831,17 @@ textarea.form-input{resize:vertical;min-height:60px;}
             <label class="form-label">Código de prueba (opcional)</label>
             <input class="form-input" id="meta-test-code" type="text" placeholder="TEST12345">
           </div>
+          <div class="form-group">
+            <label class="form-label">Monto mínimo para Purchase (AR$)</label>
+            <input class="form-input" id="meta-min-purchase" type="text" placeholder="Ej: 100000" oninput="this.value=this.value.replace(/[^0-9]/g,'')?parseInt(this.value.replace(/[^0-9]/g,'')).toLocaleString('es-AR'):''">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Monto mínimo para Lead (AR$)</label>
+            <input class="form-input" id="meta-min-lead" type="text" placeholder="Ej: 10000" oninput="this.value=this.value.replace(/[^0-9]/g,'')?parseInt(this.value.replace(/[^0-9]/g,'')).toLocaleString('es-AR'):''">
+          </div>
+        </div>
+        <div class="notice" style="margin-top:10px;font-size:11px;">
+          <strong>📊 Umbrales:</strong> Si el total de la nota es ≥ al monto de Purchase, se reporta como <strong>Purchase</strong>. Si está entre el monto de Lead y el de Purchase, se reporta como <strong>Lead</strong>. Por debajo del monto de Lead, no se envía nada. Dejá ambos en blanco o 0 para reportar siempre como Purchase.
         </div>
         <div class="btn-row">
           <button class="btn btn-primary btn-sm" onclick="guardarConfigMeta()">💾 Guardar configuración Meta</button>
@@ -3930,8 +3941,10 @@ function guardarConfigMeta(){
   const token    = document.getElementById('meta-access-token').value.trim();
   const cotiz    = document.getElementById('meta-cotizacion').value.trim();
   const testCode = document.getElementById('meta-test-code').value.trim();
+  const minPurchase = parseN(document.getElementById('meta-min-purchase').value.trim());
+  const minLead     = parseN(document.getElementById('meta-min-lead').value.trim());
   if(!pixelId||!token){ showToast('Pixel ID y Access Token son obligatorios','error'); return; }
-  S.metaConfig = { pixelId, token, cotizacion:cotiz, testCode };
+  S.metaConfig = { pixelId, token, cotizacion:cotiz, testCode, minPurchase, minLead };
   saveS();
   document.getElementById('meta-status').textContent='✅ Configurado';
   document.getElementById('meta-status').style.color='var(--green)';
@@ -3945,6 +3958,8 @@ function cargarConfigMetaAdmin(){
     setv('meta-access-token', cfg.token||'');
     setv('meta-cotizacion', cfg.cotizacion||'');
     setv('meta-test-code', cfg.testCode||'');
+    setv('meta-min-purchase', cfg.minPurchase?fmtN(cfg.minPurchase):'');
+    setv('meta-min-lead', cfg.minLead?fmtN(cfg.minLead):'');
     document.getElementById('meta-status').textContent='✅ Configurado';
     document.getElementById('meta-status').style.color='var(--green)';
   }
@@ -4008,6 +4023,16 @@ async function dispararEventoPurchase(eventData, clienteData, prefix){
   const cotiz = parseFloat((cfg.cotizacion||'1').replace(/\./g,'').replace(/,/g,'.')) || 1;
   const totalARS = parseFloat(eventData.total)||0;
   const totalUSD = parseFloat((totalARS/cotiz).toFixed(2));
+  // Determinar tipo de evento según umbrales
+  const minPurchase = parseFloat(cfg.minPurchase)||0;
+  const minLead     = parseFloat(cfg.minLead)||0;
+  let eventName = 'Purchase'; // default
+  if(minPurchase>0 || minLead>0){
+    if(totalARS >= minPurchase && minPurchase>0){ eventName='Purchase'; }
+    else if(totalARS >= minLead && minLead>0){ eventName='Lead'; }
+    else if(minPurchase>0 && totalARS < minPurchase && minLead===0){ eventName='Purchase'; } // sin umbral de lead, todo es purchase
+    else { console.log('Meta: nota por debajo del umbral mínimo, no se envía evento. Total:', totalARS); showToast('ℹ️ Nota por debajo del umbral — no se envió evento a Meta'); return; }
+  }
   const leadId   = document.getElementById(prefix+'-id-consulta').value.trim();
   const fbc      = document.getElementById(prefix+'-fbc').value.trim();
   const fbp      = document.getElementById(prefix+'-fbp').value.trim();
@@ -4037,9 +4062,9 @@ async function dispararEventoPurchase(eventData, clienteData, prefix){
     ...(userAgent ? {client_user_agent:userAgent} : {}),
   };
   const payload = { data:[{
-    event_name:    'Purchase',
+    event_name:    eventName,
     event_time:    eventTime,
-    event_id:      `${orderId}-purchase-${eventTime}`,
+    event_id:      `${orderId}-${eventName.toLowerCase()}-${eventTime}`,
     action_source: 'other',
     user_data,
     custom_data:{
@@ -4059,8 +4084,8 @@ async function dispararEventoPurchase(eventData, clienteData, prefix){
     const res  = await fetch(CAPI_URL, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
     const json = await res.json();
     if(res.ok && json.events_received>0){
-      console.log('✅ Meta Purchase enviado — ID:', orderId, '| USD:', totalUSD);
-      showToast(`📊 Evento Purchase enviado a Meta — U$D ${totalUSD}`);
+      console.log(`✅ Meta ${eventName} enviado — ID:`, orderId, '| USD:', totalUSD);
+      showToast(`📊 Evento ${eventName} enviado a Meta — U$D ${totalUSD}`);
     } else {
       console.error('Meta API error:', json);
       showToast('⚠️ El evento se guardó pero Meta devolvió error. Revisá la consola.','error');
