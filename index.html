@@ -662,6 +662,7 @@ textarea.form-input{resize:vertical;min-height:60px;}
   </div>
 
   <div id="fin-op-card"></div>
+  <input type="color" id="fin-color-picker" style="position:fixed;top:-100px;left:-100px;width:1px;height:1px;opacity:0;pointer-events:none;">
 </div>
 
 <!-- ══════════════════════════════════════
@@ -893,7 +894,7 @@ textarea.form-input{resize:vertical;min-height:60px;}
         <span class="admin-card-arrow" id="arrow-financiacion">▼</span>
       </div>
       <div class="admin-card-body" id="body-financiacion">
-        <div class="notice">Configurá los bancos/tarjetas y sus planes de cuotas. El <strong>Coeficiente</strong> es el multiplicador manual que se aplica sobre "A Financiar" para obtener el monto de cada cuota (Total = Monto de cuota × Cant. de cuotas). Usá la calculadora de abajo como ayuda para estimarlo a partir de la comisión que te descuenta la plataforma de cobro.</div>
+        <div class="notice">Configurá los bancos/tarjetas y sus planes de cuotas. El <strong>Coeficiente</strong> es el multiplicador manual total que se aplica sobre "A Financiar". El <strong>Valor de cada cuota</strong> = A Financiar × Coeficiente ÷ Cantidad de cuotas. Usá la calculadora de abajo como ayuda para estimarlo a partir de la comisión que te descuenta la plataforma de cobro. Al crear un banco nuevo, se copian automáticamente los planes y coeficientes de "Naranja + Visa Master" como punto de partida.</div>
 
         <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin:14px 0;padding:12px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);">
           <div class="form-group" style="margin-bottom:0;min-width:180px;">
@@ -1869,22 +1870,37 @@ let S = {
   notificaciones: {},
   financiacion: {
     bancos: [
-      { id:'fb-naranja', nombre:'Naranja + Visa Master', planes:[
-        { id:'fp-n1', nombre:'1 Pago (Lista)', cuotas:1,  coeficiente:1.15,     mpago:'', activo:true, fijo:true },
-        { id:'fp-n2', nombre:'Cuota Fija 3',   cuotas:3,  coeficiente:0.41,     mpago:'', activo:true },
-        { id:'fp-n3', nombre:'Cuota Fija 6',   cuotas:6,  coeficiente:0.218333, mpago:'', activo:true },
-        { id:'fp-n4', nombre:'Cuota Fija 9',   cuotas:9,  coeficiente:0.158889, mpago:'', activo:true },
-        { id:'fp-n5', nombre:'Cuota Fija 12',  cuotas:12, coeficiente:0.128333, mpago:'', activo:true },
-        { id:'fp-n6', nombre:'Cuota Fija 18',  cuotas:18, coeficiente:0.097222, mpago:'', activo:true },
+      { id:'fb-naranja', nombre:'Naranja + Visa Master', colores: { titulo:'#6aa84f', presupuesto:'#f6b26b', entrega:'#ffd966', afinanciar:'#93c47d' }, planes:[
+        { id:'fp-n1', nombre:'1 Pago (Lista)', cuotas:1,  coeficiente:1.15, mpago:'', activo:true, fijo:true, color:'#fff2cc' },
+        { id:'fp-n2', nombre:'Cuota Fija 3',   cuotas:3,  coeficiente:1.23, mpago:'', activo:true, color:'#f4cccc' },
+        { id:'fp-n3', nombre:'Cuota Fija 6',   cuotas:6,  coeficiente:1.31, mpago:'', activo:true, color:'#d9ead3' },
+        { id:'fp-n4', nombre:'Cuota Fija 9',   cuotas:9,  coeficiente:1.43, mpago:'', activo:true, color:'#f4cccc' },
+        { id:'fp-n5', nombre:'Cuota Fija 12',  cuotas:12, coeficiente:1.54, mpago:'', activo:true, color:'#fff2cc' },
+        { id:'fp-n6', nombre:'Cuota Fija 18',  cuotas:18, coeficiente:1.75, mpago:'', activo:true, color:'#f4cccc' },
       ]},
-      { id:'fb-bancor', nombre:'Bancor', planes:[
-        { id:'fp-b1', nombre:'1 Pago (Lista)', cuotas:1, coeficiente:1, mpago:'', activo:true, fijo:true },
+      { id:'fb-bancor', nombre:'Bancor', colores: { titulo:'#6aa84f', presupuesto:'#f6b26b', entrega:'#ffd966', afinanciar:'#93c47d' }, planes:[
+        { id:'fp-b1', nombre:'1 Pago (Lista)', cuotas:1,  coeficiente:1.15, mpago:'', activo:true, fijo:true, color:'#fff2cc' },
+        { id:'fp-b2', nombre:'Cuota Fija 3',   cuotas:3,  coeficiente:1.23, mpago:'', activo:true, color:'#f4cccc' },
+        { id:'fp-b3', nombre:'Cuota Fija 6',   cuotas:6,  coeficiente:1.31, mpago:'', activo:true, color:'#d9ead3' },
+        { id:'fp-b4', nombre:'Cuota Fija 9',   cuotas:9,  coeficiente:1.43, mpago:'', activo:true, color:'#f4cccc' },
+        { id:'fp-b5', nombre:'Cuota Fija 12',  cuotas:12, coeficiente:1.54, mpago:'', activo:true, color:'#fff2cc' },
+        { id:'fp-b6', nombre:'Cuota Fija 18',  cuotas:18, coeficiente:1.75, mpago:'', activo:true, color:'#f4cccc' },
       ]},
-      { id:'fb-macro', nombre:'Macro', planes:[
-        { id:'fp-m1', nombre:'1 Pago (Lista)', cuotas:1, coeficiente:1, mpago:'', activo:true, fijo:true },
+      { id:'fb-macro', nombre:'Macro', colores: { titulo:'#6aa84f', presupuesto:'#f6b26b', entrega:'#ffd966', afinanciar:'#93c47d' }, planes:[
+        { id:'fp-m1', nombre:'1 Pago (Lista)', cuotas:1,  coeficiente:1.15, mpago:'', activo:true, fijo:true, color:'#fff2cc' },
+        { id:'fp-m2', nombre:'Cuota Fija 3',   cuotas:3,  coeficiente:1.23, mpago:'', activo:true, color:'#f4cccc' },
+        { id:'fp-m3', nombre:'Cuota Fija 6',   cuotas:6,  coeficiente:1.31, mpago:'', activo:true, color:'#d9ead3' },
+        { id:'fp-m4', nombre:'Cuota Fija 9',   cuotas:9,  coeficiente:1.43, mpago:'', activo:true, color:'#f4cccc' },
+        { id:'fp-m5', nombre:'Cuota Fija 12',  cuotas:12, coeficiente:1.54, mpago:'', activo:true, color:'#fff2cc' },
+        { id:'fp-m6', nombre:'Cuota Fija 18',  cuotas:18, coeficiente:1.75, mpago:'', activo:true, color:'#f4cccc' },
       ]},
-      { id:'fb-bbva', nombre:'BBVA', planes:[
-        { id:'fp-v1', nombre:'1 Pago (Lista)', cuotas:1, coeficiente:1, mpago:'', activo:true, fijo:true },
+      { id:'fb-bbva', nombre:'BBVA', colores: { titulo:'#6aa84f', presupuesto:'#f6b26b', entrega:'#ffd966', afinanciar:'#93c47d' }, planes:[
+        { id:'fp-v1', nombre:'1 Pago (Lista)', cuotas:1,  coeficiente:1.15, mpago:'', activo:true, fijo:true, color:'#fff2cc' },
+        { id:'fp-v2', nombre:'Cuota Fija 3',   cuotas:3,  coeficiente:1.23, mpago:'', activo:true, color:'#f4cccc' },
+        { id:'fp-v3', nombre:'Cuota Fija 6',   cuotas:6,  coeficiente:1.31, mpago:'', activo:true, color:'#d9ead3' },
+        { id:'fp-v4', nombre:'Cuota Fija 9',   cuotas:9,  coeficiente:1.43, mpago:'', activo:true, color:'#f4cccc' },
+        { id:'fp-v5', nombre:'Cuota Fija 12',  cuotas:12, coeficiente:1.54, mpago:'', activo:true, color:'#fff2cc' },
+        { id:'fp-v6', nombre:'Cuota Fija 18',  cuotas:18, coeficiente:1.75, mpago:'', activo:true, color:'#f4cccc' },
       ]},
     ]
   },
@@ -4717,40 +4733,85 @@ function selectFinOpBanco(id){
   renderFinOpCuadro();
 }
 
+const FIN_DEFAULT_COLORES = { titulo:'#6aa84f', presupuesto:'#f6b26b', entrega:'#ffd966', afinanciar:'#93c47d' };
+const FIN_PLAN_COLORES = ['#fff2cc','#f4cccc','#d9ead3','#cfe2f3','#ead1dc'];
+function finColorParaIndice(i){ return FIN_PLAN_COLORES[i % FIN_PLAN_COLORES.length]; }
+
+function finContrastColor(hex){
+  if(!hex) return '#111111';
+  const c = hex.replace('#','');
+  if(c.length!==6) return '#111111';
+  const r=parseInt(c.substr(0,2),16), g=parseInt(c.substr(2,2),16), b=parseInt(c.substr(4,2),16);
+  const lum = (0.299*r+0.587*g+0.114*b)/255;
+  return lum > 0.6 ? '#111111' : '#ffffff';
+}
+
+function finOpAbrirColorPicker(ev, tipo, refId){
+  ev.preventDefault();
+  const banco = S.financiacion.bancos.find(b=>b.id===finOpBancoActivo);
+  if(!banco) return;
+  if(!banco.colores) banco.colores = {...FIN_DEFAULT_COLORES};
+  let current;
+  if(tipo==='plan'){
+    const plan = banco.planes.find(p=>p.id===refId);
+    current = plan?.color || '#cccccc';
+  } else {
+    current = banco.colores[tipo] || FIN_DEFAULT_COLORES[tipo] || '#cccccc';
+  }
+  const picker = document.getElementById('fin-color-picker');
+  if(!picker) return;
+  picker.value = current;
+  picker.onchange = () => {
+    const val = picker.value;
+    if(tipo==='plan'){
+      const plan = banco.planes.find(p=>p.id===refId);
+      if(plan) plan.color = val;
+    } else {
+      banco.colores[tipo] = val;
+    }
+    saveS();
+    renderFinOpCuadro();
+  };
+  picker.click();
+}
+
 function renderFinOpCuadro(){
   const banco = S.financiacion.bancos.find(b=>b.id===finOpBancoActivo);
   const cont = document.getElementById('fin-op-card');
   if(!cont) return;
   if(!banco){ cont.innerHTML=''; return; }
+  if(!banco.colores) banco.colores = {...FIN_DEFAULT_COLORES};
+  const col = {...FIN_DEFAULT_COLORES, ...banco.colores};
   const montoVal   = finOpMontoActual   ? fmtN(parseN(finOpMontoActual))   : '';
   const entregaVal = finOpEntregaActual ? fmtN(parseN(finOpEntregaActual)) : '';
   cont.innerHTML = `
     <div class="fin-cuadro">
-      <div class="fin-row fin-row-titulo">
-        <input class="fin-label" id="fin-op-titulo" value="${finTituloDefault(banco.nombre)}">
+      <div class="fin-row fin-row-titulo" style="background:${col.titulo};color:${finContrastColor(col.titulo)};" oncontextmenu="finOpAbrirColorPicker(event,'titulo')">
+        <input class="fin-label" style="color:inherit;" id="fin-op-titulo" value="${finTituloDefault(banco.nombre)}">
       </div>
-      <div class="fin-row fin-row-presupuesto">
-        <input class="fin-label" id="fin-op-presu-label" value="Presupuesto">
-        <input class="fin-value" id="fin-op-presu-monto" placeholder="0" inputmode="numeric" value="${montoVal}"
+      <div class="fin-row fin-row-presupuesto" style="background:${col.presupuesto};color:${finContrastColor(col.presupuesto)};" oncontextmenu="finOpAbrirColorPicker(event,'presupuesto')">
+        <input class="fin-label" style="color:inherit;" id="fin-op-presu-label" value="Presupuesto">
+        <input class="fin-value" style="color:inherit;" id="fin-op-presu-monto" placeholder="0" inputmode="numeric" value="${montoVal}"
           oninput="finOpInputMonto(this)" onblur="finOpFormatMiles(this)">
       </div>
-      <div class="fin-row fin-row-entrega">
+      <div class="fin-row fin-row-entrega" style="background:${col.entrega};color:${finContrastColor(col.entrega)};" oncontextmenu="finOpAbrirColorPicker(event,'entrega')">
         <div class="fin-label">Entrega Efectivo</div>
-        <input class="fin-value" id="fin-op-entrega" placeholder="0" inputmode="numeric" value="${entregaVal}"
+        <input class="fin-value" style="color:inherit;" id="fin-op-entrega" placeholder="0" inputmode="numeric" value="${entregaVal}"
           oninput="finOpInputEntrega(this)" onblur="finOpFormatMiles(this)">
       </div>
-      <div class="fin-row fin-row-afinanciar">
+      <div class="fin-row fin-row-afinanciar" style="background:${col.afinanciar};color:${finContrastColor(col.afinanciar)};" oncontextmenu="finOpAbrirColorPicker(event,'afinanciar')">
         <div class="fin-label">A Financiar</div>
         <div class="fin-value" id="fin-op-afinanciar">$0</div>
       </div>
       <div class="fin-table-wrap">
         <table class="items-table" id="fin-op-tabla">
-          <thead><tr><th>Plan</th><th style="text-align:right;">Monto</th><th style="text-align:right;">Total</th><th>Medio de pago</th></tr></thead>
+          <thead><tr><th>Plan</th><th style="text-align:right;">Valor Cuota</th><th style="text-align:right;">Total</th><th>Medio de pago</th></tr></thead>
           <tbody id="fin-op-tbody"></tbody>
         </table>
       </div>
-      <div class="btn-row" style="padding:0 14px 14px;">
+      <div class="btn-row" style="padding:0 14px 14px;flex-wrap:wrap;">
         <button type="button" class="btn btn-ghost btn-sm" onclick="finOpLimpiar()">✕ Limpiar</button>
+        <span style="font-size:11px;color:var(--text3);align-self:center;">🎨 Clic derecho sobre una fila para cambiarle el color</span>
       </div>
     </div>
   `;
@@ -4776,6 +4837,7 @@ function finOpLimpiar(){
   renderFinOpCuadro();
 }
 
+// Valor de cada cuota = Importe original (A Financiar) x Coeficiente del plan / Cantidad de cuotas del plan
 function finOpRecalcular(){
   const presu = parseN(document.getElementById('fin-op-presu-monto')?.value || '0');
   const entrega = parseN(document.getElementById('fin-op-entrega')?.value || '0');
@@ -4791,13 +4853,16 @@ function finOpRecalcular(){
     return;
   }
   tbody.innerHTML = planes.map(p=>{
-    const montoCuota = Math.round(aFinanciar * (parseFloat(p.coeficiente)||0));
-    const mft = montoCuota * (p.cuotas||1);
-    return `<tr>
+    const cuotas = p.cuotas||1;
+    const valorCuota = Math.round((aFinanciar * (parseFloat(p.coeficiente)||0)) / cuotas);
+    const total = valorCuota * cuotas;
+    const bg = p.color || '#2a2a2a';
+    const fg = finContrastColor(bg);
+    return `<tr style="background:${bg};color:${fg};" oncontextmenu="finOpAbrirColorPicker(event,'plan','${p.id}')">
       <td>${p.nombre}</td>
-      <td style="text-align:right;font-family:var(--font-mono);">$${fmtN(montoCuota)}</td>
-      <td style="text-align:right;font-family:var(--font-mono);" class="fin-mft">$${fmtN(mft)}</td>
-      <td style="color:var(--text2);">${p.mpago||'—'}</td>
+      <td style="text-align:right;font-family:var(--font-mono);">$${fmtN(valorCuota)}</td>
+      <td style="text-align:right;font-family:var(--font-mono);font-weight:700;">$${fmtN(total)}</td>
+      <td>${p.mpago||'—'}</td>
     </tr>`;
   }).join('');
 }
@@ -4852,16 +4917,25 @@ function finAgregarBanco(){
     showToast('Ya existe un banco con ese nombre','error'); return;
   }
   const id = 'fb'+Date.now();
-  S.financiacion.bancos.push({ id, nombre, planes:[
-    { id:'fp'+Date.now(), nombre:'1 Pago (Lista)', cuotas:1, coeficiente:1, mpago:'', activo:true, fijo:true }
-  ]});
+  // Los planes/coeficientes nuevos se crean por decreto iguales a "Naranja + Visa Master"
+  const plantilla = S.financiacion.bancos.find(b=>b.nombre==='Naranja + Visa Master') || S.financiacion.bancos[0];
+  const planesBase = plantilla ? plantilla.planes : [];
+  const planesNuevos = planesBase.length ? planesBase.map((p,i)=>({
+    id: 'fp'+Date.now()+i+Math.floor(Math.random()*1000),
+    nombre: p.nombre, cuotas: p.cuotas, coeficiente: p.coeficiente,
+    mpago: '', activo: true, fijo: !!p.fijo, color: p.color || finColorParaIndice(i)
+  })) : [
+    { id:'fp'+Date.now(), nombre:'1 Pago (Lista)', cuotas:1, coeficiente:1.15, mpago:'', activo:true, fijo:true, color:finColorParaIndice(0) }
+  ];
+  const coloresBase = plantilla?.colores ? {...plantilla.colores} : {...FIN_DEFAULT_COLORES};
+  S.financiacion.bancos.push({ id, nombre, colores: coloresBase, planes: planesNuevos });
   inp.value='';
   finAdminBancoActivo = id;
   saveS();
   renderFinAdminBancoTabs();
   renderFinAdminBancoPanel();
   renderFinOpBancoTabs();
-  showToast('✅ Banco "'+nombre+'" agregado');
+  showToast('✅ Banco "'+nombre+'" agregado con los planes de Naranja + Visa Master');
 }
 
 function finEliminarBanco(id){
@@ -4983,7 +5057,7 @@ function finGuardarPlanModal(){
   const banco = S.financiacion.bancos.find(b=>b.id===bancoId);
   if(!banco) return;
   const continuar = () => {
-    banco.planes.push({ id:'fp'+Date.now()+Math.floor(Math.random()*1000), nombre, cuotas, coeficiente, mpago:'', activo:true });
+    banco.planes.push({ id:'fp'+Date.now()+Math.floor(Math.random()*1000), nombre, cuotas, coeficiente, mpago:'', activo:true, color:finColorParaIndice(banco.planes.length) });
     banco.planes.sort((a,b)=>a.cuotas-b.cuotas);
     saveS();
     closeModal('modal-fin-plan');
