@@ -287,6 +287,7 @@ textarea.form-input{resize:vertical;min-height:60px;}
 .fin-table-wrap{padding:12px 14px;}
 .fin-mft{color:var(--blue);font-weight:700;}
 .fin-toggle{width:16px;height:16px;accent-color:var(--accent);cursor:pointer;}
+.active-fmt{background:var(--accent)!important;color:#fff!important;border-color:var(--accent)!important;}
 </style>
 </head>
 <body>
@@ -1598,6 +1599,60 @@ textarea.form-input{resize:vertical;min-height:60px;}
  </div>
 </div>
 
+<!-- ═══════════ MODAL: FORMATO DE CELDA (FINANCIACIÓN) ═══════════ -->
+<div class="modal-overlay" id="modal-fin-formato">
+ <div class="modal" style="max-width:400px;">
+  <div class="modal-title">🎨 Formato de celda<button class="modal-close" onclick="closeModal('modal-fin-formato')">✕</button></div>
+  <input type="hidden" id="fin-fmt-banco-id">
+  <input type="hidden" id="fin-fmt-cell-key">
+  <div class="form-grid">
+    <div class="form-group full">
+      <label class="form-label">Fuente</label>
+      <select class="form-select" id="fin-fmt-font">
+        <option value="">(por defecto)</option>
+        <option value="'Barlow',sans-serif">Barlow</option>
+        <option value="'Barlow Condensed',sans-serif">Barlow Condensed</option>
+        <option value="'JetBrains Mono',monospace">JetBrains Mono</option>
+        <option value="Arial,sans-serif">Arial</option>
+        <option value="Georgia,serif">Georgia</option>
+        <option value="'Courier New',monospace">Courier New</option>
+        <option value="Verdana,sans-serif">Verdana</option>
+      </select>
+    </div>
+    <div class="form-group"><label class="form-label">Tamaño (px)</label><input class="form-input" id="fin-fmt-size" type="number" min="8" max="48" placeholder="14"></div>
+    <div class="form-group">
+      <label class="form-label">Estilo</label>
+      <div style="display:flex;gap:6px;">
+        <button type="button" class="btn btn-secondary btn-xs" id="fin-fmt-bold-btn" onclick="finFmtToggle('bold')" style="font-weight:800;">N</button>
+        <button type="button" class="btn btn-secondary btn-xs" id="fin-fmt-italic-btn" onclick="finFmtToggle('italic')" style="font-style:italic;">K</button>
+      </div>
+    </div>
+    <div class="form-group full">
+      <label class="form-label">Alineación</label>
+      <div style="display:flex;gap:6px;">
+        <button type="button" class="btn btn-secondary btn-xs" id="fin-fmt-align-left" onclick="finFmtAlign('left')">⬅ Izquierda</button>
+        <button type="button" class="btn btn-secondary btn-xs" id="fin-fmt-align-center" onclick="finFmtAlign('center')">↔ Centro</button>
+        <button type="button" class="btn btn-secondary btn-xs" id="fin-fmt-align-right" onclick="finFmtAlign('right')">➡ Derecha</button>
+      </div>
+    </div>
+    <div class="form-group"><label class="form-label">Color de texto</label><input class="form-input" id="fin-fmt-color" type="color" style="height:38px;padding:3px;"></div>
+    <div class="form-group"><label class="form-label">Fondo de celda</label><input class="form-input" id="fin-fmt-bg" type="color" style="height:38px;padding:3px;"></div>
+    <div class="form-group full" id="fin-fmt-columna-wrap" style="display:none;border-top:1px solid var(--border);padding-top:10px;margin-top:4px;">
+      <label class="form-label">Ancho de columna</label>
+      <input class="form-input" id="fin-fmt-ancho" type="text" placeholder="Ej: 120px o 20%">
+      <div style="display:flex;gap:6px;margin-top:8px;">
+        <button type="button" class="btn btn-secondary btn-xs" onclick="finFmtMoverColumna(-1)">◀ Mover a la izquierda</button>
+        <button type="button" class="btn btn-secondary btn-xs" onclick="finFmtMoverColumna(1)">Mover a la derecha ▶</button>
+      </div>
+    </div>
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-primary" onclick="finFmtGuardar()">💾 Aplicar</button>
+    <button class="btn btn-ghost" onclick="finFmtRestablecer()">↺ Restablecer celda</button>
+  </div>
+ </div>
+</div>
+
 <!-- ═══════════ MODAL: BUSCAR DESDE CLIENTE ═══════════ -->
 <div class="modal-overlay" id="modal-buscar-cliente">
  <div class="modal" style="max-width:600px;">
@@ -1870,7 +1925,7 @@ let S = {
   notificaciones: {},
   financiacion: {
     bancos: [
-      { id:'fb-naranja', nombre:'Naranja + Visa Master', colores: { titulo:'#6aa84f', presupuesto:'#f6b26b', entrega:'#ffd966', afinanciar:'#93c47d' }, planes:[
+      { id:'fb-naranja', nombre:'Naranja + Visa Master', colores: { titulo:'#6aa84f', presupuesto:'#f6b26b', entrega:'#ffd966', afinanciar:'#93c47d' }, estilosCeldas: {}, tablaCols: [ { key:'nombre', label:'Plan', width:'' }, { key:'valorCuota', label:'Valor Cuota', width:'' }, { key:'total', label:'Total', width:'' }, { key:'mpago', label:'', width:'' } ], planes:[
         { id:'fp-n1', nombre:'1 Pago (Lista)', cuotas:1,  coeficiente:1.15, mpago:'', activo:true, fijo:true, color:'#fff2cc' },
         { id:'fp-n2', nombre:'Cuota Fija 3',   cuotas:3,  coeficiente:1.23, mpago:'', activo:true, color:'#f4cccc' },
         { id:'fp-n3', nombre:'Cuota Fija 6',   cuotas:6,  coeficiente:1.31, mpago:'', activo:true, color:'#d9ead3' },
@@ -1878,7 +1933,7 @@ let S = {
         { id:'fp-n5', nombre:'Cuota Fija 12',  cuotas:12, coeficiente:1.54, mpago:'', activo:true, color:'#fff2cc' },
         { id:'fp-n6', nombre:'Cuota Fija 18',  cuotas:18, coeficiente:1.75, mpago:'', activo:true, color:'#f4cccc' },
       ]},
-      { id:'fb-bancor', nombre:'Bancor', colores: { titulo:'#6aa84f', presupuesto:'#f6b26b', entrega:'#ffd966', afinanciar:'#93c47d' }, planes:[
+      { id:'fb-bancor', nombre:'Bancor', colores: { titulo:'#6aa84f', presupuesto:'#f6b26b', entrega:'#ffd966', afinanciar:'#93c47d' }, estilosCeldas: {}, tablaCols: [ { key:'nombre', label:'Plan', width:'' }, { key:'valorCuota', label:'Valor Cuota', width:'' }, { key:'total', label:'Total', width:'' }, { key:'mpago', label:'', width:'' } ], planes:[
         { id:'fp-b1', nombre:'1 Pago (Lista)', cuotas:1,  coeficiente:1.15, mpago:'', activo:true, fijo:true, color:'#fff2cc' },
         { id:'fp-b2', nombre:'Cuota Fija 3',   cuotas:3,  coeficiente:1.23, mpago:'', activo:true, color:'#f4cccc' },
         { id:'fp-b3', nombre:'Cuota Fija 6',   cuotas:6,  coeficiente:1.31, mpago:'', activo:true, color:'#d9ead3' },
@@ -1886,7 +1941,7 @@ let S = {
         { id:'fp-b5', nombre:'Cuota Fija 12',  cuotas:12, coeficiente:1.54, mpago:'', activo:true, color:'#fff2cc' },
         { id:'fp-b6', nombre:'Cuota Fija 18',  cuotas:18, coeficiente:1.75, mpago:'', activo:true, color:'#f4cccc' },
       ]},
-      { id:'fb-macro', nombre:'Macro', colores: { titulo:'#6aa84f', presupuesto:'#f6b26b', entrega:'#ffd966', afinanciar:'#93c47d' }, planes:[
+      { id:'fb-macro', nombre:'Macro', colores: { titulo:'#6aa84f', presupuesto:'#f6b26b', entrega:'#ffd966', afinanciar:'#93c47d' }, estilosCeldas: {}, tablaCols: [ { key:'nombre', label:'Plan', width:'' }, { key:'valorCuota', label:'Valor Cuota', width:'' }, { key:'total', label:'Total', width:'' }, { key:'mpago', label:'', width:'' } ], planes:[
         { id:'fp-m1', nombre:'1 Pago (Lista)', cuotas:1,  coeficiente:1.15, mpago:'', activo:true, fijo:true, color:'#fff2cc' },
         { id:'fp-m2', nombre:'Cuota Fija 3',   cuotas:3,  coeficiente:1.23, mpago:'', activo:true, color:'#f4cccc' },
         { id:'fp-m3', nombre:'Cuota Fija 6',   cuotas:6,  coeficiente:1.31, mpago:'', activo:true, color:'#d9ead3' },
@@ -1894,7 +1949,7 @@ let S = {
         { id:'fp-m5', nombre:'Cuota Fija 12',  cuotas:12, coeficiente:1.54, mpago:'', activo:true, color:'#fff2cc' },
         { id:'fp-m6', nombre:'Cuota Fija 18',  cuotas:18, coeficiente:1.75, mpago:'', activo:true, color:'#f4cccc' },
       ]},
-      { id:'fb-bbva', nombre:'BBVA', colores: { titulo:'#6aa84f', presupuesto:'#f6b26b', entrega:'#ffd966', afinanciar:'#93c47d' }, planes:[
+      { id:'fb-bbva', nombre:'BBVA', colores: { titulo:'#6aa84f', presupuesto:'#f6b26b', entrega:'#ffd966', afinanciar:'#93c47d' }, estilosCeldas: {}, tablaCols: [ { key:'nombre', label:'Plan', width:'' }, { key:'valorCuota', label:'Valor Cuota', width:'' }, { key:'total', label:'Total', width:'' }, { key:'mpago', label:'', width:'' } ], planes:[
         { id:'fp-v1', nombre:'1 Pago (Lista)', cuotas:1,  coeficiente:1.15, mpago:'', activo:true, fijo:true, color:'#fff2cc' },
         { id:'fp-v2', nombre:'Cuota Fija 3',   cuotas:3,  coeficiente:1.23, mpago:'', activo:true, color:'#f4cccc' },
         { id:'fp-v3', nombre:'Cuota Fija 6',   cuotas:6,  coeficiente:1.31, mpago:'', activo:true, color:'#d9ead3' },
@@ -4775,43 +4830,197 @@ function finOpAbrirColorPicker(ev, tipo, refId){
   picker.click();
 }
 
+// ── Formato de celda (fuente/tamaño/negrita/cursiva/alineación/colores) y ancho/posición de columna ──
+let finFmtState = { bold:false, italic:false, align:'left' };
+let finFmtColumnaKey = null;
+
+function finFmtActualizarBotones(){
+  const boldBtn = document.getElementById('fin-fmt-bold-btn');
+  const italicBtn = document.getElementById('fin-fmt-italic-btn');
+  if(boldBtn) boldBtn.classList.toggle('active-fmt', finFmtState.bold);
+  if(italicBtn) italicBtn.classList.toggle('active-fmt', finFmtState.italic);
+  ['left','center','right'].forEach(a=>{
+    const btn = document.getElementById('fin-fmt-align-'+a);
+    if(btn) btn.classList.toggle('active-fmt', finFmtState.align===a);
+  });
+}
+function finFmtToggle(prop){
+  finFmtState[prop] = !finFmtState[prop];
+  finFmtActualizarBotones();
+}
+function finFmtAlign(al){
+  finFmtState.align = al;
+  finFmtActualizarBotones();
+}
+
+function finOpAbrirFormatoCelda(ev, cellKey, opts){
+  ev.preventDefault();
+  ev.stopPropagation();
+  const banco = S.financiacion.bancos.find(b=>b.id===finOpBancoActivo);
+  if(!banco) return;
+  if(!banco.estilosCeldas) banco.estilosCeldas = {};
+  const st = banco.estilosCeldas[cellKey] || {};
+  setv('fin-fmt-banco-id', banco.id);
+  setv('fin-fmt-cell-key', cellKey);
+  setv('fin-fmt-font', st.font||'');
+  setv('fin-fmt-size', st.size||'');
+  setv('fin-fmt-color', st.color||'#111111');
+  setv('fin-fmt-bg', st.bg||'#ffffff');
+  finFmtState = { bold: !!st.bold, italic: !!st.italic, align: st.align || 'left' };
+  finFmtActualizarBotones();
+  const esColumna = !!(opts && opts.columna);
+  const wrap = document.getElementById('fin-fmt-columna-wrap');
+  if(wrap) wrap.style.display = esColumna ? '' : 'none';
+  finFmtColumnaKey = esColumna ? opts.columna : null;
+  if(esColumna){
+    const col = finGetTablaCols(banco).find(c=>c.key===opts.columna);
+    setv('fin-fmt-ancho', col?.width || '');
+  }
+  openModal('modal-fin-formato');
+}
+
+function finFmtGuardar(){
+  const bancoId = v('fin-fmt-banco-id');
+  const cellKey = v('fin-fmt-cell-key');
+  const banco = S.financiacion.bancos.find(b=>b.id===bancoId);
+  if(!banco) return;
+  if(!banco.estilosCeldas) banco.estilosCeldas = {};
+  banco.estilosCeldas[cellKey] = {
+    font: v('fin-fmt-font'),
+    size: v('fin-fmt-size'),
+    bold: finFmtState.bold,
+    italic: finFmtState.italic,
+    align: finFmtState.align,
+    color: v('fin-fmt-color'),
+    bg: v('fin-fmt-bg'),
+  };
+  if(finFmtColumnaKey){
+    const col = finGetTablaCols(banco).find(c=>c.key===finFmtColumnaKey);
+    if(col) col.width = v('fin-fmt-ancho');
+  }
+  saveS();
+  closeModal('modal-fin-formato');
+  renderFinOpCuadro();
+  showToast('✅ Formato aplicado');
+}
+
+function finFmtRestablecer(){
+  const bancoId = v('fin-fmt-banco-id');
+  const cellKey = v('fin-fmt-cell-key');
+  const banco = S.financiacion.bancos.find(b=>b.id===bancoId);
+  if(banco?.estilosCeldas) delete banco.estilosCeldas[cellKey];
+  saveS();
+  closeModal('modal-fin-formato');
+  renderFinOpCuadro();
+  showToast('Formato restablecido');
+}
+
+function finFmtMoverColumna(dir){
+  const bancoId = v('fin-fmt-banco-id');
+  const banco = S.financiacion.bancos.find(b=>b.id===bancoId);
+  if(!banco || !finFmtColumnaKey) return;
+  const cols = finGetTablaCols(banco);
+  const idx = cols.findIndex(c=>c.key===finFmtColumnaKey);
+  const newIdx = idx+dir;
+  if(idx<0 || newIdx<0 || newIdx>=cols.length) return;
+  const tmp = cols[idx];
+  cols[idx] = cols[newIdx];
+  cols[newIdx] = tmp;
+  saveS();
+  renderFinOpCuadro();
+  showToast('Columna reordenada');
+}
+
+function finGetTablaCols(banco){
+  if(!banco.tablaCols || !banco.tablaCols.length){
+    banco.tablaCols = [
+      { key:'nombre', label:'Plan', width:'' },
+      { key:'valorCuota', label:'Valor Cuota', width:'' },
+      { key:'total', label:'Total', width:'' },
+      { key:'mpago', label:'', width:'' },
+    ];
+  }
+  return banco.tablaCols;
+}
+
+function finCellStyleCSS(st, fallbackBg, fallbackFg, fallbackAlign){
+  st = st || {};
+  const bg = st.bg || fallbackBg || 'transparent';
+  const fg = st.color || fallbackFg || 'inherit';
+  const align = st.align || fallbackAlign || 'left';
+  let css = `background:${bg};color:${fg};text-align:${align};`;
+  if(st.font) css += `font-family:${st.font};`;
+  if(st.size) css += `font-size:${st.size}px;`;
+  if(st.bold) css += `font-weight:700;`;
+  if(st.italic) css += `font-style:italic;`;
+  return css;
+}
+
 function renderFinOpCuadro(){
   const banco = S.financiacion.bancos.find(b=>b.id===finOpBancoActivo);
   const cont = document.getElementById('fin-op-card');
   if(!cont) return;
   if(!banco){ cont.innerHTML=''; return; }
   if(!banco.colores) banco.colores = {...FIN_DEFAULT_COLORES};
+  if(!banco.estilosCeldas) banco.estilosCeldas = {};
+  finGetTablaCols(banco);
   const col = {...FIN_DEFAULT_COLORES, ...banco.colores};
+  const est = banco.estilosCeldas;
   const montoVal   = finOpMontoActual   ? fmtN(parseN(finOpMontoActual))   : '';
   const entregaVal = finOpEntregaActual ? fmtN(parseN(finOpEntregaActual)) : '';
+
+  const cssTitulo   = finCellStyleCSS(est['titulo'],          col.titulo,      finContrastColor(col.titulo),      'left');
+  const cssPresuLbl = finCellStyleCSS(est['presu-label'],     col.presupuesto, finContrastColor(col.presupuesto), 'left');
+  const cssPresuVal = finCellStyleCSS(est['presu-valor'],     col.presupuesto, finContrastColor(col.presupuesto), 'right');
+  const cssEntLbl   = finCellStyleCSS(est['entrega-label'],   col.entrega,     finContrastColor(col.entrega),     'left');
+  const cssEntVal   = finCellStyleCSS(est['entrega-valor'],   col.entrega,     finContrastColor(col.entrega),     'right');
+  const cssAfLbl    = finCellStyleCSS(est['afinanciar-label'],col.afinanciar,  finContrastColor(col.afinanciar),  'left');
+  const cssAfVal    = finCellStyleCSS(est['afinanciar-valor'],col.afinanciar,  finContrastColor(col.afinanciar),  'right');
+
+  const presuLblVal = document.getElementById('fin-op-presu-label')?.value || 'Presupuesto';
+  const presuEsVacio = !montoVal;
+  const entEsVacio = !entregaVal;
+
+  const thead = banco.tablaCols.map(c=>{
+    const cellKey = 'col-'+c.key;
+    const alignDef = (c.key==='valorCuota'||c.key==='total') ? 'right' : 'left';
+    const css = finCellStyleCSS(est[cellKey], null, null, alignDef);
+    const widthCss = c.width ? `width:${c.width};` : '';
+    return `<th style="${widthCss}${css}" oncontextmenu="finOpAbrirFormatoCelda(event,'${cellKey}',{columna:'${c.key}'})">${c.label||''}</th>`;
+  }).join('');
+
   cont.innerHTML = `
     <div class="fin-cuadro">
-      <div class="fin-row fin-row-titulo" style="background:${col.titulo};color:${finContrastColor(col.titulo)};" oncontextmenu="finOpAbrirColorPicker(event,'titulo')">
-        <input class="fin-label" style="color:inherit;" id="fin-op-titulo" value="${finTituloDefault(banco.nombre)}">
+      <div class="fin-row fin-row-titulo" style="background:${col.titulo};">
+        <input class="fin-label" style="${cssTitulo}" id="fin-op-titulo" value="${finTituloDefault(banco.nombre)}"
+          oncontextmenu="finOpAbrirFormatoCelda(event,'titulo')">
       </div>
-      <div class="fin-row fin-row-presupuesto" style="background:${col.presupuesto};color:${finContrastColor(col.presupuesto)};" oncontextmenu="finOpAbrirColorPicker(event,'presupuesto')">
-        <input class="fin-label" style="color:inherit;" id="fin-op-presu-label" value="Presupuesto">
-        <input class="fin-value" style="color:inherit;" id="fin-op-presu-monto" placeholder="0" inputmode="numeric" value="${montoVal}"
-          oninput="finOpInputMonto(this)" onblur="finOpFormatMiles(this)">
+      <div class="fin-row fin-row-presupuesto" style="background:${col.presupuesto};">
+        <input class="fin-label" style="${cssPresuLbl}" id="fin-op-presu-label" value="${presuLblVal}"
+          oncontextmenu="finOpAbrirFormatoCelda(event,'presu-label')">
+        <input class="fin-value" style="${cssPresuVal}" id="fin-op-presu-monto" placeholder="0" inputmode="numeric" value="${montoVal}"
+          oninput="finOpInputMonto(this)" onblur="finOpFormatMiles(this)"
+          oncontextmenu="${presuEsVacio ? "finOpAbrirColorPicker(event,'presupuesto')" : "finOpAbrirFormatoCelda(event,'presu-valor')"}">
       </div>
-      <div class="fin-row fin-row-entrega" style="background:${col.entrega};color:${finContrastColor(col.entrega)};" oncontextmenu="finOpAbrirColorPicker(event,'entrega')">
-        <div class="fin-label">Entrega Efectivo</div>
-        <input class="fin-value" style="color:inherit;" id="fin-op-entrega" placeholder="0" inputmode="numeric" value="${entregaVal}"
-          oninput="finOpInputEntrega(this)" onblur="finOpFormatMiles(this)">
+      <div class="fin-row fin-row-entrega" style="background:${col.entrega};">
+        <div class="fin-label" style="${cssEntLbl}" oncontextmenu="finOpAbrirFormatoCelda(event,'entrega-label')">Entrega Efectivo</div>
+        <input class="fin-value" style="${cssEntVal}" id="fin-op-entrega" placeholder="0" inputmode="numeric" value="${entregaVal}"
+          oninput="finOpInputEntrega(this)" onblur="finOpFormatMiles(this)"
+          oncontextmenu="${entEsVacio ? "finOpAbrirColorPicker(event,'entrega')" : "finOpAbrirFormatoCelda(event,'entrega-valor')"}">
       </div>
-      <div class="fin-row fin-row-afinanciar" style="background:${col.afinanciar};color:${finContrastColor(col.afinanciar)};" oncontextmenu="finOpAbrirColorPicker(event,'afinanciar')">
-        <div class="fin-label">A Financiar</div>
-        <div class="fin-value" id="fin-op-afinanciar">$0</div>
+      <div class="fin-row fin-row-afinanciar" style="background:${col.afinanciar};">
+        <div class="fin-label" style="${cssAfLbl}" oncontextmenu="finOpAbrirFormatoCelda(event,'afinanciar-label')">A Financiar</div>
+        <div class="fin-value" style="${cssAfVal}" id="fin-op-afinanciar" oncontextmenu="finOpAbrirFormatoCelda(event,'afinanciar-valor')">$0</div>
       </div>
       <div class="fin-table-wrap">
         <table class="items-table" id="fin-op-tabla">
-          <thead><tr><th>Plan</th><th style="text-align:right;">Valor Cuota</th><th style="text-align:right;">Total</th><th>Medio de pago</th></tr></thead>
+          <thead><tr>${thead}</tr></thead>
           <tbody id="fin-op-tbody"></tbody>
         </table>
       </div>
       <div class="btn-row" style="padding:0 14px 14px;flex-wrap:wrap;">
         <button type="button" class="btn btn-ghost btn-sm" onclick="finOpLimpiar()">✕ Limpiar</button>
-        <span style="font-size:11px;color:var(--text3);align-self:center;">🎨 Clic derecho sobre una fila para cambiarle el color</span>
+        <span style="font-size:11px;color:var(--text3);align-self:center;">🎨 Clic derecho en un texto = darle formato · clic derecho en una celda vacía = color de la fila</span>
       </div>
     </div>
   `;
@@ -4847,23 +5056,34 @@ function finOpRecalcular(){
   const banco = S.financiacion.bancos.find(b=>b.id===finOpBancoActivo);
   const tbody = document.getElementById('fin-op-tbody');
   if(!banco || !tbody) return;
+  if(!banco.estilosCeldas) banco.estilosCeldas = {};
+  const cols = finGetTablaCols(banco);
   const planes = (banco.planes||[]).filter(p=>p.activo!==false).slice().sort((a,b)=>a.cuotas-b.cuotas);
   if(!planes.length){
-    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:14px;">Sin planes activos para este banco — configuralos en Admin → Financiación</td></tr>';
+    tbody.innerHTML = `<tr><td colspan="${cols.length}" style="text-align:center;color:var(--text3);padding:14px;">Sin planes activos para este banco — configuralos en Admin → Financiación</td></tr>`;
     return;
   }
   tbody.innerHTML = planes.map(p=>{
     const cuotas = p.cuotas||1;
     const valorCuota = Math.round((aFinanciar * (parseFloat(p.coeficiente)||0)) / cuotas);
     const total = valorCuota * cuotas;
-    const bg = p.color || '#2a2a2a';
-    const fg = finContrastColor(bg);
-    return `<tr style="background:${bg};color:${fg};" oncontextmenu="finOpAbrirColorPicker(event,'plan','${p.id}')">
-      <td>${p.nombre}</td>
-      <td style="text-align:right;font-family:var(--font-mono);">$${fmtN(valorCuota)}</td>
-      <td style="text-align:right;font-family:var(--font-mono);font-weight:700;">$${fmtN(total)}</td>
-      <td>${p.mpago||'—'}</td>
-    </tr>`;
+    const rowBg = p.color || '#2a2a2a';
+    const rowFg = finContrastColor(rowBg);
+    const valores = { nombre: p.nombre, valorCuota: '$'+fmtN(valorCuota), total: '$'+fmtN(total), mpago: p.mpago||'' };
+    const vacio = { nombre:false, valorCuota:false, total:false, mpago: !p.mpago };
+    const tds = cols.map(c=>{
+      const cellKey = `plan-${p.id}-${c.key}`;
+      const alignDef = (c.key==='valorCuota'||c.key==='total') ? 'right' : 'left';
+      const css = finCellStyleCSS(banco.estilosCeldas[cellKey], rowBg, rowFg, alignDef);
+      const mono = (c.key==='valorCuota'||c.key==='total') ? 'font-family:var(--font-mono);' : '';
+      const contenido = valores[c.key];
+      const texto = contenido || (c.key==='mpago' ? '—' : '');
+      const handler = vacio[c.key]
+        ? `finOpAbrirColorPicker(event,'plan','${p.id}')`
+        : `finOpAbrirFormatoCelda(event,'${cellKey}')`;
+      return `<td style="${css}${mono}" oncontextmenu="${handler}">${texto}</td>`;
+    }).join('');
+    return `<tr>${tds}</tr>`;
   }).join('');
 }
 
@@ -4928,7 +5148,8 @@ function finAgregarBanco(){
     { id:'fp'+Date.now(), nombre:'1 Pago (Lista)', cuotas:1, coeficiente:1.15, mpago:'', activo:true, fijo:true, color:finColorParaIndice(0) }
   ];
   const coloresBase = plantilla?.colores ? {...plantilla.colores} : {...FIN_DEFAULT_COLORES};
-  S.financiacion.bancos.push({ id, nombre, colores: coloresBase, planes: planesNuevos });
+  const colsBase = plantilla ? finGetTablaCols(plantilla).map(c=>({...c})) : undefined;
+  S.financiacion.bancos.push({ id, nombre, colores: coloresBase, estilosCeldas: {}, tablaCols: colsBase, planes: planesNuevos });
   inp.value='';
   finAdminBancoActivo = id;
   saveS();
