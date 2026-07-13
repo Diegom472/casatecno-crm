@@ -266,6 +266,27 @@ textarea.form-input{resize:vertical;min-height:60px;}
 .pass-wrap .form-input{flex:1;padding-right:42px;}
 .eye-btn{position:absolute;right:10px;background:none;border:none;cursor:pointer;color:var(--text3);font-size:16px;padding:0;line-height:1;z-index:1;}
 .eye-btn:hover{color:var(--text);}
+
+/* == FINANCIACION == */
+.fin-banco-tab{padding:7px 14px;border-radius:20px;border:1px solid var(--border);background:var(--bg2);color:var(--text2);font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;}
+.fin-banco-tab:hover{border-color:var(--accent);}
+.fin-banco-tab.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+.fin-cuadro{max-width:680px;border:1px solid var(--border);border-radius:var(--radius2);overflow:hidden;background:var(--bg2);}
+.fin-row{display:grid;grid-template-columns:1fr 170px;border-top:1px solid var(--border);}
+.fin-row:first-child{border-top:none;}
+.fin-row input,.fin-row>div{background:transparent;border:none;color:inherit;font-family:var(--font);width:100%;}
+.fin-row .fin-label{padding:11px 14px;font-weight:700;font-size:13px;display:flex;align-items:center;}
+.fin-row .fin-value{padding:11px 14px;font-weight:700;font-size:14px;text-align:right;font-family:var(--font-mono);border-left:1px solid rgba(120,120,120,0.25)!important;}
+.fin-row .fin-value:focus,.fin-row .fin-label:focus{outline:none;background:rgba(255,255,255,0.08);}
+.fin-row-titulo{grid-template-columns:1fr;background:var(--green);color:#fff;}
+.fin-row-titulo .fin-label{font-family:var(--font-cond);text-transform:uppercase;letter-spacing:.4px;font-size:16px;}
+.fin-row-presupuesto{background:var(--accent-dim);color:var(--text);}
+.fin-row-entrega{background:var(--yellow-dim);color:var(--text);}
+.fin-row-afinanciar{background:var(--green-dim);}
+.fin-row-afinanciar .fin-label,.fin-row-afinanciar .fin-value{color:var(--green);font-size:15px;}
+.fin-table-wrap{padding:12px 14px;}
+.fin-mft{color:var(--blue);font-weight:700;}
+.fin-toggle{width:16px;height:16px;accent-color:var(--accent);cursor:pointer;}
 </style>
 </head>
 <body>
@@ -360,6 +381,7 @@ textarea.form-input{resize:vertical;min-height:60px;}
     <button class="nav-tab active" data-tab="cliente" onclick="goTo('cliente')">👤 Cliente</button>
     <button class="nav-tab" data-tab="califica" onclick="goTo('califica')">⭐ Califica</button>
     <button class="nav-tab" data-tab="buscar" onclick="goTo('buscar')">🔍 Buscar</button>
+    <button class="nav-tab" data-tab="financiacion" onclick="goTo('financiacion')">💳 Financiación</button>
     <button class="nav-tab" data-tab="stock" onclick="goTo('stock')">📦 Stock</button>
     <button class="nav-tab" data-tab="admin" onclick="goTo('admin')">⚙️ Admin</button>
   </div>
@@ -629,6 +651,20 @@ textarea.form-input{resize:vertical;min-height:60px;}
 </div>
 
 <!-- ══════════════════════════════════════
+     PÁGINA: FINANCIACIÓN
+══════════════════════════════════════ -->
+<div class="page" id="page-financiacion">
+  <div class="section-header"><h1>Financiación</h1></div>
+
+  <div class="card" style="margin-bottom:14px;">
+    <div class="card-title" style="margin-bottom:10px;">Banco / Tarjeta</div>
+    <div id="fin-op-bancos-tabs" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+  </div>
+
+  <div id="fin-op-card"></div>
+</div>
+
+<!-- ══════════════════════════════════════
      PÁGINA: STOCK
 ══════════════════════════════════════ -->
 <div class="page" id="page-stock">
@@ -849,6 +885,42 @@ textarea.form-input{resize:vertical;min-height:60px;}
         </div>
       </div>
     </div>
+
+    <!-- ═══ FINANCIACIÓN ═══ -->
+    <div class="admin-card">
+      <div class="admin-card-header" onclick="toggleAdminCard('financiacion')">
+        <span class="admin-card-title">💳 Financiación</span>
+        <span class="admin-card-arrow" id="arrow-financiacion">▼</span>
+      </div>
+      <div class="admin-card-body" id="body-financiacion">
+        <div class="notice">Configurá los bancos/tarjetas y sus planes de cuotas. El <strong>Coeficiente</strong> es el multiplicador manual que se aplica sobre "A Financiar" para obtener el monto de cada cuota (Total = Monto de cuota × Cant. de cuotas). Usá la calculadora de abajo como ayuda para estimarlo a partir de la comisión que te descuenta la plataforma de cobro.</div>
+
+        <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end;margin:14px 0;padding:12px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);">
+          <div class="form-group" style="margin-bottom:0;min-width:180px;">
+            <label class="form-label">Comisión + Interés (%)</label>
+            <input class="form-input" id="fin-comi-input" type="text" placeholder="Ej: 13" inputmode="decimal" oninput="finCalcularCoeficienteComision()">
+          </div>
+          <div class="form-group" style="margin-bottom:0;min-width:140px;">
+            <label class="form-label">Coeficiente</label>
+            <input class="form-input" id="fin-comi-resultado" type="text" readonly style="font-weight:700;color:var(--accent);">
+          </div>
+          <div style="font-size:11px;color:var(--text3);max-width:260px;">Coeficiente = 1 ÷ (1 − comisión%). Copialo manualmente al plan que corresponda — no se aplica solo.</div>
+        </div>
+
+        <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px;">
+          <div class="form-group" style="flex:1;min-width:200px;margin-bottom:0;">
+            <label class="form-label">Nombre del nuevo banco / tarjeta</label>
+            <input class="form-input" id="fin-nuevo-banco-input" type="text" placeholder="Ej: Santander, Cencosud...">
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="finAgregarBanco()">＋ Nuevo Banco</button>
+        </div>
+
+        <div id="fin-admin-bancos-tabs" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;"></div>
+
+        <div id="fin-admin-banco-panel"></div>
+      </div>
+    </div>
+
     <div class="admin-card">
       <div class="admin-card-header" onclick="toggleAdminCard('predef')">
         <span class="admin-card-title">🔧 Servicios Predefinidos</span>
@@ -1509,6 +1581,22 @@ textarea.form-input{resize:vertical;min-height:60px;}
  </div>
 </div>
 
+<!-- ═══════════ MODAL: AGREGAR PLAN DE FINANCIACIÓN ═══════════ -->
+<div class="modal-overlay" id="modal-fin-plan">
+ <div class="modal" style="max-width:420px;">
+  <div class="modal-title">＋ Agregar Plan<button class="modal-close" onclick="closeModal('modal-fin-plan')">✕</button></div>
+  <input type="hidden" id="fin-plan-banco-id">
+  <div class="form-grid">
+    <div class="form-group full"><label class="form-label">Nombre del plan *</label><input class="form-input" id="fin-plan-nombre" type="text" placeholder="Ej: Cuota Fija 3"></div>
+    <div class="form-group"><label class="form-label">Cantidad de cuotas *</label><input class="form-input" id="fin-plan-cuotas" type="number" min="1" step="1"></div>
+    <div class="form-group"><label class="form-label">Coeficiente *</label><input class="form-input" id="fin-plan-coeficiente" type="text" inputmode="decimal" placeholder="Ej: 0.410"></div>
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-primary" onclick="finGuardarPlanModal()">💾 Guardar</button>
+  </div>
+ </div>
+</div>
+
 <!-- ═══════════ MODAL: BUSCAR DESDE CLIENTE ═══════════ -->
 <div class="modal-overlay" id="modal-buscar-cliente">
  <div class="modal" style="max-width:600px;">
@@ -1779,6 +1867,27 @@ let S = {
   stockApiUrl: '',
   userEvents: [],
   notificaciones: {},
+  financiacion: {
+    bancos: [
+      { id:'fb-naranja', nombre:'Naranja + Visa Master', planes:[
+        { id:'fp-n1', nombre:'1 Pago (Lista)', cuotas:1,  coeficiente:1.15,     mpago:'', activo:true, fijo:true },
+        { id:'fp-n2', nombre:'Cuota Fija 3',   cuotas:3,  coeficiente:0.41,     mpago:'', activo:true },
+        { id:'fp-n3', nombre:'Cuota Fija 6',   cuotas:6,  coeficiente:0.218333, mpago:'', activo:true },
+        { id:'fp-n4', nombre:'Cuota Fija 9',   cuotas:9,  coeficiente:0.158889, mpago:'', activo:true },
+        { id:'fp-n5', nombre:'Cuota Fija 12',  cuotas:12, coeficiente:0.128333, mpago:'', activo:true },
+        { id:'fp-n6', nombre:'Cuota Fija 18',  cuotas:18, coeficiente:0.097222, mpago:'', activo:true },
+      ]},
+      { id:'fb-bancor', nombre:'Bancor', planes:[
+        { id:'fp-b1', nombre:'1 Pago (Lista)', cuotas:1, coeficiente:1, mpago:'', activo:true, fijo:true },
+      ]},
+      { id:'fb-macro', nombre:'Macro', planes:[
+        { id:'fp-m1', nombre:'1 Pago (Lista)', cuotas:1, coeficiente:1, mpago:'', activo:true, fijo:true },
+      ]},
+      { id:'fb-bbva', nombre:'BBVA', planes:[
+        { id:'fp-v1', nombre:'1 Pago (Lista)', cuotas:1, coeficiente:1, mpago:'', activo:true, fijo:true },
+      ]},
+    ]
+  },
   compraItemN: 0,
   servItemN: 0,
   retiraCompra: 1,
@@ -1965,6 +2074,7 @@ function saveS(){
       userEvents:     JSON.stringify(S.userEvents||[]),
       config: JSON.stringify({
         predefinidos:   S.predefinidos,
+        financiacion:   S.financiacion||{bancos:[]},
         negocio:        S.negocio,
         logo:           S.logo,
         adminUser:      S.adminUser,
@@ -2096,6 +2206,7 @@ function goTo(tab){
   document.getElementById('page-'+tab).classList.add('active');
   document.querySelector(`.nav-tab[data-tab="${tab}"]`).classList.add('active');
   if(tab==='stock') initStock();
+  if(tab==='financiacion') initFinanciacionOperador();
 }
 
 // ══════════════════════════════════════════════
@@ -4520,6 +4631,7 @@ function subirDatosAFirebase(){
     userEvents:     JSON.stringify(S.userEvents||[]),
     config: JSON.stringify({
       predefinidos:      S.predefinidos,
+      financiacion:      S.financiacion||{bancos:[]},
       negocio:           S.negocio,
       logo:              S.logo,
       adminUser:         S.adminUser,
@@ -4558,7 +4670,331 @@ function toggleAdminCard(id){
   if(!isOpen){
     if(id==='balance') initBalance();
     if(id==='usuarios') renderUsersList();
+    if(id==='financiacion') initFinanciacionAdmin();
   }
+}
+
+// ══════════════════════════════════════════════
+//  FINANCIACIÓN
+// ══════════════════════════════════════════════
+const FIN_MESES = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
+function finTituloDefault(nombreBanco){
+  return FIN_MESES[new Date().getMonth()] + ' | ' + String(nombreBanco||'').toUpperCase();
+}
+
+// ── Página Operador ──
+let finOpBancoActivo = null;
+let finOpMontoActual = '';
+let finOpEntregaActual = '';
+
+function initFinanciacionOperador(){
+  if(!S.financiacion) S.financiacion = {bancos:[]};
+  if(!S.financiacion.bancos.length){
+    const tabsEl = document.getElementById('fin-op-bancos-tabs');
+    const cardEl = document.getElementById('fin-op-card');
+    if(tabsEl) tabsEl.innerHTML = '<span style="font-size:12px;color:var(--text3);">Sin bancos configurados — agregalos en Admin → Financiación</span>';
+    if(cardEl) cardEl.innerHTML = '';
+    return;
+  }
+  if(!finOpBancoActivo || !S.financiacion.bancos.find(b=>b.id===finOpBancoActivo)){
+    finOpBancoActivo = S.financiacion.bancos[0].id;
+  }
+  renderFinOpBancoTabs();
+  renderFinOpCuadro();
+}
+
+function renderFinOpBancoTabs(){
+  const cont = document.getElementById('fin-op-bancos-tabs');
+  if(!cont) return;
+  cont.innerHTML = S.financiacion.bancos.map(b=>
+    `<button type="button" class="fin-banco-tab ${b.id===finOpBancoActivo?'active':''}" onclick="selectFinOpBanco('${b.id}')">${b.nombre}</button>`
+  ).join('');
+}
+
+function selectFinOpBanco(id){
+  finOpBancoActivo = id;
+  renderFinOpBancoTabs();
+  renderFinOpCuadro();
+}
+
+function renderFinOpCuadro(){
+  const banco = S.financiacion.bancos.find(b=>b.id===finOpBancoActivo);
+  const cont = document.getElementById('fin-op-card');
+  if(!cont) return;
+  if(!banco){ cont.innerHTML=''; return; }
+  const montoVal   = finOpMontoActual   ? fmtN(parseN(finOpMontoActual))   : '';
+  const entregaVal = finOpEntregaActual ? fmtN(parseN(finOpEntregaActual)) : '';
+  cont.innerHTML = `
+    <div class="fin-cuadro">
+      <div class="fin-row fin-row-titulo">
+        <input class="fin-label" id="fin-op-titulo" value="${finTituloDefault(banco.nombre)}">
+      </div>
+      <div class="fin-row fin-row-presupuesto">
+        <input class="fin-label" id="fin-op-presu-label" value="Presupuesto">
+        <input class="fin-value" id="fin-op-presu-monto" placeholder="0" inputmode="numeric" value="${montoVal}"
+          oninput="finOpInputMonto(this)" onblur="finOpFormatMiles(this)">
+      </div>
+      <div class="fin-row fin-row-entrega">
+        <div class="fin-label">Entrega Efectivo</div>
+        <input class="fin-value" id="fin-op-entrega" placeholder="0" inputmode="numeric" value="${entregaVal}"
+          oninput="finOpInputEntrega(this)" onblur="finOpFormatMiles(this)">
+      </div>
+      <div class="fin-row fin-row-afinanciar">
+        <div class="fin-label">A Financiar</div>
+        <div class="fin-value" id="fin-op-afinanciar">$0</div>
+      </div>
+      <div class="fin-table-wrap">
+        <table class="items-table" id="fin-op-tabla">
+          <thead><tr><th>Plan</th><th style="text-align:right;">Monto</th><th style="text-align:right;">Total</th><th>Medio de pago</th></tr></thead>
+          <tbody id="fin-op-tbody"></tbody>
+        </table>
+      </div>
+      <div class="btn-row" style="padding:0 14px 14px;">
+        <button type="button" class="btn btn-ghost btn-sm" onclick="finOpLimpiar()">✕ Limpiar</button>
+      </div>
+    </div>
+  `;
+  finOpRecalcular();
+}
+
+function finOpInputMonto(inp){
+  inp.value = inp.value.replace(/[^0-9]/g,'');
+  finOpMontoActual = inp.value;
+  finOpRecalcular();
+}
+function finOpInputEntrega(inp){
+  inp.value = inp.value.replace(/[^0-9]/g,'');
+  finOpEntregaActual = inp.value;
+  finOpRecalcular();
+}
+function finOpFormatMiles(inp){
+  if(inp.value) inp.value = fmtN(parseN(inp.value));
+}
+function finOpLimpiar(){
+  finOpMontoActual = '';
+  finOpEntregaActual = '';
+  renderFinOpCuadro();
+}
+
+function finOpRecalcular(){
+  const presu = parseN(document.getElementById('fin-op-presu-monto')?.value || '0');
+  const entrega = parseN(document.getElementById('fin-op-entrega')?.value || '0');
+  const aFinanciar = Math.max(0, presu - entrega);
+  const afEl = document.getElementById('fin-op-afinanciar');
+  if(afEl) afEl.textContent = '$'+fmtN(aFinanciar);
+  const banco = S.financiacion.bancos.find(b=>b.id===finOpBancoActivo);
+  const tbody = document.getElementById('fin-op-tbody');
+  if(!banco || !tbody) return;
+  const planes = (banco.planes||[]).filter(p=>p.activo!==false).slice().sort((a,b)=>a.cuotas-b.cuotas);
+  if(!planes.length){
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:14px;">Sin planes activos para este banco — configuralos en Admin → Financiación</td></tr>';
+    return;
+  }
+  tbody.innerHTML = planes.map(p=>{
+    const montoCuota = Math.round(aFinanciar * (parseFloat(p.coeficiente)||0));
+    const mft = montoCuota * (p.cuotas||1);
+    return `<tr>
+      <td>${p.nombre}</td>
+      <td style="text-align:right;font-family:var(--font-mono);">$${fmtN(montoCuota)}</td>
+      <td style="text-align:right;font-family:var(--font-mono);" class="fin-mft">$${fmtN(mft)}</td>
+      <td style="color:var(--text2);">${p.mpago||'—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Admin: Comisión + Interés → Coeficiente ──
+function finCalcularCoeficienteComision(){
+  const raw = (v('fin-comi-input')||'').replace(',','.').replace('%','');
+  const pct = parseFloat(raw);
+  const out = document.getElementById('fin-comi-resultado');
+  if(!out) return;
+  if(isNaN(pct) || pct<=0 || pct>=100){ out.value=''; return; }
+  const coef = 1/(1-(pct/100));
+  out.value = coef.toFixed(4);
+}
+
+// ── Admin: gestión de bancos y planes ──
+let finAdminBancoActivo = null;
+
+function initFinanciacionAdmin(){
+  if(!S.financiacion) S.financiacion = {bancos:[]};
+  renderFinAdminBancoTabs();
+  renderFinAdminBancoPanel();
+}
+
+function renderFinAdminBancoTabs(){
+  const cont = document.getElementById('fin-admin-bancos-tabs');
+  if(!cont) return;
+  if(!S.financiacion.bancos.length){
+    cont.innerHTML = '<span style="font-size:12px;color:var(--text3);">Sin bancos aún — agregá uno arriba.</span>';
+    return;
+  }
+  if(!finAdminBancoActivo || !S.financiacion.bancos.find(b=>b.id===finAdminBancoActivo)){
+    finAdminBancoActivo = S.financiacion.bancos[0].id;
+  }
+  cont.innerHTML = S.financiacion.bancos.map(b=>
+    `<button type="button" class="fin-banco-tab ${b.id===finAdminBancoActivo?'active':''}" onclick="finSelectBancoAdmin('${b.id}')">${b.nombre}</button>`
+  ).join('');
+}
+
+function finSelectBancoAdmin(id){
+  finAdminBancoActivo = id;
+  renderFinAdminBancoTabs();
+  renderFinAdminBancoPanel();
+}
+
+function finAgregarBanco(){
+  const inp = document.getElementById('fin-nuevo-banco-input');
+  const nombre = inp?.value.trim();
+  if(!nombre){ showToast('Ingresá un nombre para el banco','error'); return; }
+  if(!S.financiacion) S.financiacion = {bancos:[]};
+  if(S.financiacion.bancos.find(b=>b.nombre.toLowerCase()===nombre.toLowerCase())){
+    showToast('Ya existe un banco con ese nombre','error'); return;
+  }
+  const id = 'fb'+Date.now();
+  S.financiacion.bancos.push({ id, nombre, planes:[
+    { id:'fp'+Date.now(), nombre:'1 Pago (Lista)', cuotas:1, coeficiente:1, mpago:'', activo:true, fijo:true }
+  ]});
+  inp.value='';
+  finAdminBancoActivo = id;
+  saveS();
+  renderFinAdminBancoTabs();
+  renderFinAdminBancoPanel();
+  renderFinOpBancoTabs();
+  showToast('✅ Banco "'+nombre+'" agregado');
+}
+
+function finEliminarBanco(id){
+  const banco = S.financiacion.bancos.find(b=>b.id===id);
+  if(!banco) return;
+  if(!confirm(`¿Eliminar el banco "${banco.nombre}" y todos sus planes? Esta acción no se puede deshacer.`)) return;
+  S.financiacion.bancos = S.financiacion.bancos.filter(b=>b.id!==id);
+  if(finAdminBancoActivo===id) finAdminBancoActivo = S.financiacion.bancos[0]?.id || null;
+  if(finOpBancoActivo===id) finOpBancoActivo = null;
+  saveS();
+  renderFinAdminBancoTabs();
+  renderFinAdminBancoPanel();
+  showToast('Banco eliminado');
+}
+
+function renderFinAdminBancoPanel(){
+  const cont = document.getElementById('fin-admin-banco-panel');
+  if(!cont) return;
+  const banco = S.financiacion.bancos.find(b=>b.id===finAdminBancoActivo);
+  if(!banco){
+    cont.innerHTML = '<div style="color:var(--text3);font-size:13px;padding:14px 0;text-align:center;">Agregá un banco para empezar.</div>';
+    return;
+  }
+  const planes = (banco.planes||[]).slice().sort((a,b)=>a.cuotas-b.cuotas);
+  cont.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+      <div style="font-weight:700;font-size:14px;">${banco.nombre}</div>
+      <button type="button" class="btn btn-ghost btn-xs" onclick="finEliminarBanco('${banco.id}')">🗑️ Eliminar banco</button>
+    </div>
+    <div style="overflow-x:auto;">
+    <table class="items-table">
+      <thead><tr>
+        <th style="width:50px;text-align:center;">Activo</th>
+        <th>Plan</th>
+        <th style="width:70px;text-align:center;">Cuotas</th>
+        <th style="width:110px;">Coeficiente</th>
+        <th style="width:160px;">M. Pago</th>
+        <th style="width:36px;"></th>
+      </tr></thead>
+      <tbody>
+        ${planes.map(p=>`
+          <tr>
+            <td style="text-align:center;"><input type="checkbox" class="fin-toggle" ${p.activo!==false?'checked':''} onchange="finToggleActivo('${banco.id}','${p.id}',this.checked)"></td>
+            <td>${p.nombre}${p.fijo?' <span style="font-size:10px;color:var(--text3);">(fijo)</span>':''}</td>
+            <td style="text-align:center;color:var(--text2);">${p.cuotas}</td>
+            <td><input class="form-input" style="font-size:12px;padding:5px 7px;" type="text" inputmode="decimal" value="${p.coeficiente}" onchange="finEditarCoeficiente('${banco.id}','${p.id}',this.value)"></td>
+            <td><input class="form-input" style="font-size:12px;padding:5px 7px;" type="text" value="${p.mpago||''}" placeholder="Ej: Naranja X" onchange="finEditarMpago('${banco.id}','${p.id}',this.value)"></td>
+            <td style="text-align:center;">${p.fijo?'':`<button type="button" onclick="finEliminarPlan('${banco.id}','${p.id}')" style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:14px;" title="Eliminar">✕</button>`}</td>
+          </tr>`).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:14px;">Sin planes aún.</td></tr>'}
+      </tbody>
+    </table>
+    </div>
+    <div class="btn-row" style="margin-top:10px;justify-content:space-between;">
+      <button type="button" class="btn btn-secondary btn-sm" onclick="finAbrirModalPlan('${banco.id}')">＋ Agregar Plan</button>
+      <button type="button" class="btn btn-primary btn-sm" onclick="finGuardarTodo()">💾 Guardar</button>
+    </div>
+  `;
+}
+
+function finToggleActivo(bancoId, planId, checked){
+  const banco = S.financiacion.bancos.find(b=>b.id===bancoId);
+  const plan = banco?.planes.find(p=>p.id===planId);
+  if(!plan) return;
+  plan.activo = checked;
+  saveS();
+}
+
+function finEditarCoeficiente(bancoId, planId, val){
+  const banco = S.financiacion.bancos.find(b=>b.id===bancoId);
+  const plan = banco?.planes.find(p=>p.id===planId);
+  if(!plan) return;
+  const num = parseFloat(String(val).replace(',','.'))||0;
+  plan.coeficiente = num;
+  saveS();
+}
+
+function finEditarMpago(bancoId, planId, val){
+  const banco = S.financiacion.bancos.find(b=>b.id===bancoId);
+  const plan = banco?.planes.find(p=>p.id===planId);
+  if(!plan) return;
+  plan.mpago = val.trim();
+  saveS();
+}
+
+function finEliminarPlan(bancoId, planId){
+  const banco = S.financiacion.bancos.find(b=>b.id===bancoId);
+  if(!banco) return;
+  const plan = banco.planes.find(p=>p.id===planId);
+  if(!plan) return;
+  if(plan.fijo){ showToast('Este plan es fijo y no se puede eliminar','error'); return; }
+  if(!confirm(`¿Eliminar el plan "${plan.nombre}"?`)) return;
+  banco.planes = banco.planes.filter(p=>p.id!==planId);
+  saveS();
+  renderFinAdminBancoPanel();
+  showToast('Plan eliminado');
+}
+
+function finGuardarTodo(){
+  saveS();
+  showToast('✅ Cambios de Financiación guardados');
+}
+
+// ── Modal Agregar Plan ──
+function finAbrirModalPlan(bancoId){
+  setv('fin-plan-banco-id', bancoId);
+  setv('fin-plan-nombre','');
+  setv('fin-plan-cuotas','');
+  setv('fin-plan-coeficiente','');
+  openModal('modal-fin-plan');
+}
+
+function finGuardarPlanModal(){
+  const bancoId = v('fin-plan-banco-id');
+  const nombre = v('fin-plan-nombre').trim();
+  const cuotas = parseInt(v('fin-plan-cuotas'))||0;
+  const coeficiente = parseFloat(v('fin-plan-coeficiente').replace(',','.'))||0;
+  if(!nombre){ showToast('Ingresá un nombre para el plan','error'); return; }
+  if(cuotas<1){ showToast('Ingresá una cantidad de cuotas válida','error'); return; }
+  const banco = S.financiacion.bancos.find(b=>b.id===bancoId);
+  if(!banco) return;
+  const continuar = () => {
+    banco.planes.push({ id:'fp'+Date.now()+Math.floor(Math.random()*1000), nombre, cuotas, coeficiente, mpago:'', activo:true });
+    banco.planes.sort((a,b)=>a.cuotas-b.cuotas);
+    saveS();
+    closeModal('modal-fin-plan');
+    renderFinAdminBancoPanel();
+    showToast('✅ Plan agregado');
+  };
+  if(banco.planes.find(p=>p.cuotas===cuotas)){
+    if(confirm('Ya existe un plan con esa cantidad de cuotas en este banco. ¿Agregar igual?')) continuar();
+    return;
+  }
+  continuar();
 }
 
 // ══════════════════════════════════════════════
