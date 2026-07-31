@@ -486,6 +486,12 @@ textarea.form-input{resize:vertical;min-height:60px;}
         <button class="btn btn-ghost btn-sm" onclick="actualizarCliente()">✏️ Actualizar</button>
         <button class="btn btn-secondary btn-sm" onclick="buscarConFormularioActual()">🔍 Buscar</button>
       </div>
+      <!-- Grupo 4: Cargar por ID de Consulta -->
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding:6px 10px;background:var(--accent-dim);border-radius:var(--radius);border:1px solid var(--accent);">
+        <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:0.5px;">📋 ID Consulta</span>
+        <input class="form-input" id="ficha-lead-id" type="text" placeholder="CT-XXXXXX" style="width:130px;font-family:monospace;font-size:13px;padding:6px 9px;" onkeydown="if(event.key==='Enter'){event.preventDefault();cargarClienteDesdeLead('ficha');}">
+        <button class="btn btn-primary btn-sm" onclick="cargarClienteDesdeLead('ficha')">🔍 Traer datos</button>
+      </div>
     </div>
   </div>
 
@@ -622,6 +628,11 @@ textarea.form-input{resize:vertical;min-height:60px;}
       <button class="btn btn-primary" onclick="ejecutarBusqueda()">🔍 Buscar</button>
       <button class="btn btn-secondary" onclick="verClienteBusqueda()">👁️ Ver</button>
       <button class="btn btn-ghost btn-sm" onclick="limpiarBusqueda()">✕ Limpiar</button>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding:6px 10px;background:var(--accent-dim);border-radius:var(--radius);border:1px solid var(--accent);margin-left:auto;">
+        <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:0.5px;">📋 ID Consulta</span>
+        <input class="form-input" id="buscar-lead-id" type="text" placeholder="CT-XXXXXX" style="width:130px;font-family:monospace;font-size:13px;padding:6px 9px;" onkeydown="if(event.key==='Enter'){event.preventDefault();cargarClienteDesdeLead('buscar');}">
+        <button class="btn btn-primary btn-sm" onclick="cargarClienteDesdeLead('buscar')">🔍 Traer datos</button>
+      </div>
     </div>
   </div>
 
@@ -1777,6 +1788,8 @@ let S = {
   metaConfig: {},
   stock: [],
   stockApiUrl: '',
+  fichaLeadId: null,
+  fichaLeadTecnicos: null,
   userEvents: [],
   notificaciones: {},
   compraItemN: 0,
@@ -2145,6 +2158,10 @@ function limpiarFicha(){
   setv('c-localidad', 'Córdoba');
   setv('c-provincia', 'Córdoba');
   setv('c-cp', '5000');
+  // Limpiar lead cargado
+  S.fichaLeadId = null;
+  S.fichaLeadTecnicos = null;
+  const fli = document.getElementById('ficha-lead-id'); if(fli) fli.value='';
   document.getElementById('c-iva').value='Consumidor Final';
   document.getElementById('c-canal').value='';
   document.getElementById('c-doc-tipo').value='dni';
@@ -3055,6 +3072,18 @@ function openNuevaCompra(){
   ['compra-meta-ip','compra-meta-ua','compra-meta-adid','compra-meta-campaign'].forEach(id=>setv(id,''));
   const metaStatus=document.getElementById('compra-meta-status'); if(metaStatus) metaStatus.style.display='none';
   const metaTec=document.getElementById('compra-meta-tecnicos'); if(metaTec) metaTec.style.display='none';
+  // Si la ficha tiene un lead cargado, pre-llenar el ID de consulta y datos técnicos
+  if(S.fichaLeadId){
+    setv('compra-id-consulta', S.fichaLeadId);
+    if(S.fichaLeadTecnicos){
+      setv('compra-fbc', S.fichaLeadTecnicos.fbc||'');
+      setv('compra-fbp', S.fichaLeadTecnicos.fbp||'');
+      setv('compra-meta-ip', S.fichaLeadTecnicos.ip||'');
+      setv('compra-meta-ua', S.fichaLeadTecnicos.user_agent||'');
+      setv('compra-meta-adid', S.fichaLeadTecnicos.utm?.utm_content||'');
+      setv('compra-meta-campaign', S.fichaLeadTecnicos.utm?.utm_campaign||'');
+    }
+  }
   // Set usuario label - nombre completo
   const nombreCompleto = S.currentUser?.nombreCompleto || S.currentUser?.nombre || 'Administrador';
   const uLabel = document.getElementById('compra-usuario-label');
@@ -3489,6 +3518,17 @@ function openNuevoServicio(){
   ['serv-meta-ip','serv-meta-ua','serv-meta-adid','serv-meta-campaign'].forEach(id=>setv(id,''));
   const sMetaStatus=document.getElementById('serv-meta-status'); if(sMetaStatus) sMetaStatus.style.display='none';
   const sMetaTec=document.getElementById('serv-meta-tecnicos'); if(sMetaTec) sMetaTec.style.display='none';
+  if(S.fichaLeadId){
+    setv('serv-id-consulta', S.fichaLeadId);
+    if(S.fichaLeadTecnicos){
+      setv('serv-fbc', S.fichaLeadTecnicos.fbc||'');
+      setv('serv-fbp', S.fichaLeadTecnicos.fbp||'');
+      setv('serv-meta-ip', S.fichaLeadTecnicos.ip||'');
+      setv('serv-meta-ua', S.fichaLeadTecnicos.user_agent||'');
+      setv('serv-meta-adid', S.fichaLeadTecnicos.utm?.utm_content||'');
+      setv('serv-meta-campaign', S.fichaLeadTecnicos.utm?.utm_campaign||'');
+    }
+  }
   // Set usuario label - nombre completo
   const nombreCompletoS = S.currentUser?.nombreCompleto || S.currentUser?.nombre || 'Administrador';
   const uLabelS = document.getElementById('serv-usuario-label');
@@ -4020,6 +4060,64 @@ async function buscarDatosTecnicosMeta(prefix){
   } catch(e){
     statusEl.style.color='var(--accent)';
     statusEl.textContent='Error al buscar: '+e.message;
+  }
+}
+
+// Busca un bin en JSONBin por lead_id (colección uncategorized, paginado)
+async function fetchBinPorLeadId(leadId){
+  let match = null;
+  let cursor = '';
+  let intentos = 0;
+  while(!match && intentos < 30){
+    const url = `https://api.jsonbin.io/v3/c/uncategorized/bins` + (cursor ? `/${cursor}` : '');
+    const res = await fetch(url, { headers:{ 'X-Master-Key': JSONBIN_KEY } });
+    if(!res.ok) break;
+    const list = await res.json();
+    if(!Array.isArray(list) || list.length===0) break;
+    match = list.find(b => b.snippetMeta && b.snippetMeta.name === leadId);
+    cursor = list[list.length-1].record;
+    intentos++;
+    if(list.length < 10) break;
+  }
+  if(!match) return null;
+  const binRes = await fetch(`https://api.jsonbin.io/v3/b/${match.record}/latest`, {
+    headers:{ 'X-Master-Key': JSONBIN_KEY }
+  });
+  const binData = await binRes.json();
+  return binData.record;
+}
+
+// Carga los datos de un lead (CT-XXXXXX) en la ficha de cliente y los deja editables
+async function cargarClienteDesdeLead(origen){
+  const inputId = origen==='ficha' ? 'ficha-lead-id' : 'buscar-lead-id';
+  const leadId = document.getElementById(inputId).value.trim();
+  if(!leadId){ showToast('Ingresá el ID de consulta','error'); return; }
+  showToast('🔍 Buscando datos del lead...');
+  try{
+    const d = await fetchBinPorLeadId(leadId);
+    if(!d){ showToast('⚠️ No se encontraron datos para '+leadId,'error'); return; }
+    // Ir a la ficha de cliente
+    goTo('cliente');
+    limpiarFicha();
+    // Autocompletar campos de la ficha
+    setv('c-nombre', d.nombre||'');
+    setv('c-apellido', d.apellido||'');
+    setv('c-email', (d.email||'').toLowerCase());
+    setv('c-domicilio', d.direccion||'');
+    setv('c-localidad', d.localidad||'Córdoba');
+    setv('c-provincia', d.provincia||'Córdoba');
+    setv('c-cp', d.cp||'5000');
+    // DNI
+    if(d.dni){ setv('c-dni', d.dni); }
+    // Guardar el lead_id y datos técnicos en la ficha para usarlos al crear la nota
+    S.fichaLeadId = leadId;
+    S.fichaLeadTecnicos = { fbc:d.fbc||'', fbp:d.fbp||'', ip:d.ip||'', user_agent:d.user_agent||'', utm:d.utm||{} };
+    // Mostrar el lead cargado en ambos campos
+    const fichaInput = document.getElementById('ficha-lead-id');
+    if(fichaInput) fichaInput.value = leadId;
+    showToast('✅ Datos de '+leadId+' cargados — revisá y guardá el cliente');
+  } catch(e){
+    showToast('Error al buscar: '+e.message,'error');
   }
 }
 
