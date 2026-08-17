@@ -1168,23 +1168,32 @@ textarea.form-input{resize:vertical;min-height:60px;}
     <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.7px;color:var(--text3);margin-bottom:8px;">🔒 Datos internos Meta — no se imprimen</div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">
       <div class="form-group" style="flex:1;min-width:160px;margin-bottom:0;">
-        <label class="form-label">ID de Consulta (CT-XXXXXX)</label>
+        <label class="form-label">Lead Web — ID de Consulta (CT-XXXXXX)</label>
         <div style="display:flex;gap:6px;">
           <input class="form-input" id="compra-id-consulta" type="text" placeholder="CT-M8X3KZ" style="font-family:monospace;letter-spacing:0.05em;">
           <button class="btn btn-secondary btn-sm" onclick="buscarDatosTecnicosMeta('compra')" style="white-space:nowrap;">🔍 Buscar</button>
         </div>
-        <div id="compra-meta-status" style="font-size:11px;margin-top:4px;display:none;"></div>
+      </div>
+      <div class="form-group" style="flex:1;min-width:160px;margin-bottom:0;">
+        <label class="form-label">Lead WhatsApp (CTWA) — Teléfono</label>
+        <div style="display:flex;gap:6px;">
+          <input class="form-input" id="compra-tel-ctwa" type="text" placeholder="549351..." style="font-family:monospace;">
+          <button class="btn btn-secondary btn-sm" onclick="buscarLeadPorTelefono('compra')" style="white-space:nowrap;">📱 Buscar</button>
+        </div>
       </div>
     </div>
+    <div id="compra-meta-status" style="font-size:11px;margin-top:6px;display:none;"></div>
     <!-- Datos técnicos recuperados -->
     <div id="compra-meta-tecnicos" style="display:none;margin-top:10px;padding:8px 10px;background:var(--bg2);border-radius:var(--radius);border:1px solid var(--border);">
-      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.7px;color:var(--text3);margin-bottom:6px;">✅ Datos técnicos cargados</div>
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.7px;color:var(--text3);margin-bottom:6px;"><span id="compra-tec-titulo">✅ Datos técnicos cargados</span></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:11px;font-family:monospace;">
-        <div>fbc: <span id="compra-show-fbc" style="color:var(--green);">—</span></div>
-        <div>fbp: <span id="compra-show-fbp" style="color:var(--green);">—</span></div>
+        <div id="compra-row-fbc">fbc: <span id="compra-show-fbc" style="color:var(--green);">—</span></div>
+        <div id="compra-row-fbp">fbp: <span id="compra-show-fbp" style="color:var(--green);">—</span></div>
+        <div id="compra-row-ctwa" style="display:none;grid-column:1/3;">ctwa_clid: <span id="compra-show-ctwa" style="color:var(--accent);">—</span></div>
         <div>IP: <span id="compra-show-ip" style="color:var(--text2);">—</span></div>
         <div>UTM: <span id="compra-show-utm" style="color:var(--text2);">—</span></div>
       </div>
+      <div id="compra-ctwa-info" style="display:none;margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:11px;color:var(--text2);"></div>
     </div>
     <input type="hidden" id="compra-fbc">
     <input type="hidden" id="compra-fbp">
@@ -1192,6 +1201,8 @@ textarea.form-input{resize:vertical;min-height:60px;}
     <input type="hidden" id="compra-meta-ua">
     <input type="hidden" id="compra-meta-adid">
     <input type="hidden" id="compra-meta-campaign">
+    <input type="hidden" id="compra-ctwa-clid">
+    <input type="hidden" id="compra-lead-origen" value="">
   </div>
   <!-- USUARIO CARGADO POR -->
   <div style="margin-top:8px;padding:8px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;color:var(--text3);display:flex;align-items:center;gap:6px;">
@@ -1310,22 +1321,31 @@ textarea.form-input{resize:vertical;min-height:60px;}
     <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.7px;color:var(--text3);margin-bottom:8px;">🔒 Datos internos Meta — no se imprimen</div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">
       <div class="form-group" style="flex:1;min-width:160px;margin-bottom:0;">
-        <label class="form-label">ID de Consulta (CT-XXXXXX)</label>
+        <label class="form-label">Lead Web — ID de Consulta (CT-XXXXXX)</label>
         <div style="display:flex;gap:6px;">
           <input class="form-input" id="serv-id-consulta" type="text" placeholder="CT-M8X3KZ" style="font-family:monospace;letter-spacing:0.05em;">
           <button class="btn btn-secondary btn-sm" onclick="buscarDatosTecnicosMeta('serv')" style="white-space:nowrap;">🔍 Buscar</button>
         </div>
-        <div id="serv-meta-status" style="font-size:11px;margin-top:4px;display:none;"></div>
+      </div>
+      <div class="form-group" style="flex:1;min-width:160px;margin-bottom:0;">
+        <label class="form-label">Lead WhatsApp (CTWA) — Teléfono</label>
+        <div style="display:flex;gap:6px;">
+          <input class="form-input" id="serv-tel-ctwa" type="text" placeholder="549351..." style="font-family:monospace;">
+          <button class="btn btn-secondary btn-sm" onclick="buscarLeadPorTelefono('serv')" style="white-space:nowrap;">📱 Buscar</button>
+        </div>
       </div>
     </div>
+    <div id="serv-meta-status" style="font-size:11px;margin-top:6px;display:none;"></div>
     <div id="serv-meta-tecnicos" style="display:none;margin-top:10px;padding:8px 10px;background:var(--bg2);border-radius:var(--radius);border:1px solid var(--border);">
-      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.7px;color:var(--text3);margin-bottom:6px;">✅ Datos técnicos cargados</div>
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.7px;color:var(--text3);margin-bottom:6px;"><span id="serv-tec-titulo">✅ Datos técnicos cargados</span></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:11px;font-family:monospace;">
-        <div>fbc: <span id="serv-show-fbc" style="color:var(--green);">—</span></div>
-        <div>fbp: <span id="serv-show-fbp" style="color:var(--green);">—</span></div>
+        <div id="serv-row-fbc">fbc: <span id="serv-show-fbc" style="color:var(--green);">—</span></div>
+        <div id="serv-row-fbp">fbp: <span id="serv-show-fbp" style="color:var(--green);">—</span></div>
+        <div id="serv-row-ctwa" style="display:none;grid-column:1/3;">ctwa_clid: <span id="serv-show-ctwa" style="color:var(--accent);">—</span></div>
         <div>IP: <span id="serv-show-ip" style="color:var(--text2);">—</span></div>
         <div>UTM: <span id="serv-show-utm" style="color:var(--text2);">—</span></div>
       </div>
+      <div id="serv-ctwa-info" style="display:none;margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:11px;color:var(--text2);"></div>
     </div>
     <input type="hidden" id="serv-fbc">
     <input type="hidden" id="serv-fbp">
@@ -1333,6 +1353,8 @@ textarea.form-input{resize:vertical;min-height:60px;}
     <input type="hidden" id="serv-meta-ua">
     <input type="hidden" id="serv-meta-adid">
     <input type="hidden" id="serv-meta-campaign">
+    <input type="hidden" id="serv-ctwa-clid">
+    <input type="hidden" id="serv-lead-origen" value="">
   </div>
   <!-- USUARIO CARGADO POR -->
   <div style="margin-top:8px;padding:8px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);font-size:12px;color:var(--text3);display:flex;align-items:center;gap:6px;">
@@ -3072,6 +3094,8 @@ function openNuevaCompra(){
   ['compra-meta-ip','compra-meta-ua','compra-meta-adid','compra-meta-campaign'].forEach(id=>setv(id,''));
   const metaStatus=document.getElementById('compra-meta-status'); if(metaStatus) metaStatus.style.display='none';
   const metaTec=document.getElementById('compra-meta-tecnicos'); if(metaTec) metaTec.style.display='none';
+  setv('compra-tel-ctwa',''); setv('compra-ctwa-clid','');
+  const cOrigen=document.getElementById('compra-lead-origen'); if(cOrigen) cOrigen.value='';
   // Si la ficha tiene un lead cargado, pre-llenar el ID de consulta y datos técnicos
   if(S.fichaLeadId){
     setv('compra-id-consulta', S.fichaLeadId);
@@ -3518,6 +3542,8 @@ function openNuevoServicio(){
   ['serv-meta-ip','serv-meta-ua','serv-meta-adid','serv-meta-campaign'].forEach(id=>setv(id,''));
   const sMetaStatus=document.getElementById('serv-meta-status'); if(sMetaStatus) sMetaStatus.style.display='none';
   const sMetaTec=document.getElementById('serv-meta-tecnicos'); if(sMetaTec) sMetaTec.style.display='none';
+  setv('serv-tel-ctwa',''); setv('serv-ctwa-clid','');
+  const sOrigen=document.getElementById('serv-lead-origen'); if(sOrigen) sOrigen.value='';
   if(S.fichaLeadId){
     setv('serv-id-consulta', S.fichaLeadId);
     if(S.fichaLeadTecnicos){
@@ -3970,6 +3996,81 @@ function renderUsersList(filtro=''){
 // ══════════════════════════════════════════════
 const JSONBIN_KEY = '$2a$10$rfn7AanHAIUoMsRjoB20M.Ii7edqk/w4eeklxhBZmFjMfh7.PMbZ.';
 const JSONBIN_URL = 'https://api.jsonbin.io/v3/b';
+const CTWA_ENDPOINT = 'https://n8n.casatecnochat.com/webhook/buscar-lead';
+const WABA_ID = '840125128920753';
+
+// Busca un lead CTWA por teléfono en el endpoint de n8n/PostgreSQL
+async function buscarLeadPorTelefono(prefix){
+  const telInput = document.getElementById(prefix+'-tel-ctwa');
+  let tel = (telInput.value||'').replace(/\D/g,'');
+  if(!tel){
+    // Si no cargó teléfono, intentar usar el del cliente
+    const wsp = (v('c-whatsapp')||'').replace(/\D/g,'');
+    if(wsp){ tel = wsp; telInput.value = wsp; }
+  }
+  if(!tel){ showToast('Ingresá un teléfono','error'); return; }
+  const statusEl = document.getElementById(prefix+'-meta-status');
+  const tecnicosEl = document.getElementById(prefix+'-meta-tecnicos');
+  statusEl.style.display='block';
+  statusEl.style.color='var(--text3)';
+  statusEl.textContent='📱 Buscando lead de WhatsApp...';
+  tecnicosEl.style.display='none';
+  try{
+    const res = await fetch(`${CTWA_ENDPOINT}?telefono=${encodeURIComponent(tel)}`);
+    if(!res.ok){ throw new Error('HTTP '+res.status); }
+    let data = await res.json();
+    // El endpoint puede devolver un array o un objeto
+    if(Array.isArray(data)) data = data[0];
+    if(!data || !data.telefono){
+      statusEl.style.color='var(--yellow)';
+      statusEl.textContent='⚠️ No se encontró lead CTWA para este teléfono. Podés continuar igual.';
+      return;
+    }
+    // Guardar ctwa_clid y marcar origen
+    document.getElementById(prefix+'-ctwa-clid').value = data.ctwa_clid||'';
+    document.getElementById(prefix+'-lead-origen').value = 'ctwa';
+    // Limpiar campos web (fbc/fbp) para no mezclar
+    document.getElementById(prefix+'-fbc').value = '';
+    document.getElementById(prefix+'-fbp').value = '';
+    document.getElementById(prefix+'-id-consulta').value = '';
+    // Mostrar en el panel
+    document.getElementById(prefix+'-tec-titulo').textContent = '✅ Lead WhatsApp (CTWA) cargado';
+    document.getElementById(prefix+'-row-fbc').style.display='none';
+    document.getElementById(prefix+'-row-fbp').style.display='none';
+    document.getElementById(prefix+'-row-ctwa').style.display='block';
+    document.getElementById(prefix+'-show-ctwa').textContent = data.ctwa_clid ? (data.ctwa_clid.slice(0,24)+'...') : '(no disponible)';
+    document.getElementById(prefix+'-show-ip').textContent = data.ciudad||'—';
+    document.getElementById(prefix+'-show-utm').textContent = data.califica||'—';
+    // Info adicional del lead (informativa, no va a Meta)
+    const infoEl = document.getElementById(prefix+'-ctwa-info');
+    const partes = [];
+    if(data.nombre) partes.push('👤 '+data.nombre);
+    if(data.tipo_label||data.tipo_pc) partes.push('💻 '+(data.tipo_label||data.tipo_pc));
+    if(data.rama_label) partes.push('🎯 '+data.rama_label);
+    if(data.perifericos_label) partes.push('⌨️ '+data.perifericos_label);
+    if(data.cuando_label) partes.push('📅 '+data.cuando_label);
+    if(data.lead_value) partes.push('💵 U$D '+data.lead_value+' (valor estimado del lead)');
+    if(data.califica) partes.push('⭐ '+data.califica);
+    infoEl.innerHTML = partes.join(' &nbsp;·&nbsp; ');
+    infoEl.style.display = partes.length ? 'block' : 'none';
+    tecnicosEl.style.display='block';
+    statusEl.style.color='var(--green)';
+    statusEl.textContent='✅ Lead CTWA cargado — se reportará como WhatsApp';
+    // Autocompletar datos del cliente si están vacíos
+    if(data.nombre && !v('c-nombre')){
+      const partesNombre = data.nombre.trim().split(' ');
+      setv('c-nombre', partesNombre[0]||'');
+      setv('c-apellido', partesNombre.slice(1).join(' ')||'');
+    }
+    if(data.ciudad && !v('c-localidad')) setv('c-localidad', data.ciudad);
+    if(data.provincia && !v('c-provincia')) setv('c-provincia', data.provincia);
+    if(data.cp && !v('c-cp')) setv('c-cp', data.cp);
+    if(tel && !v('c-whatsapp')) setv('c-whatsapp', tel);
+  } catch(e){
+    statusEl.style.color='var(--accent)';
+    statusEl.textContent='Error al buscar lead CTWA: '+e.message;
+  }
+}
 
 function formatMetaCotizacion(inp){
   let raw = inp.value.replace(/[^\d]/g,'');
@@ -4042,6 +4143,14 @@ async function buscarDatosTecnicosMeta(prefix){
     });
     const binData = await binRes.json();
     const d = binData.record;
+    // Marcar origen web y limpiar CTWA
+    document.getElementById(prefix+'-lead-origen').value = 'web';
+    document.getElementById(prefix+'-ctwa-clid').value = '';
+    document.getElementById(prefix+'-tec-titulo').textContent = '✅ Datos técnicos (Lead Web) cargados';
+    document.getElementById(prefix+'-row-fbc').style.display='block';
+    document.getElementById(prefix+'-row-fbp').style.display='block';
+    document.getElementById(prefix+'-row-ctwa').style.display='none';
+    document.getElementById(prefix+'-ctwa-info').style.display='none';
     // Fill hidden fields
     document.getElementById(prefix+'-fbc').value          = d.fbc||'';
     document.getElementById(prefix+'-fbp').value          = d.fbp||'';
@@ -4150,7 +4259,10 @@ async function dispararEventoPurchase(eventData, clienteData, prefix){
   const userAgent= document.getElementById(prefix+'-meta-ua').value.trim();
   const adId     = document.getElementById(prefix+'-meta-adid').value.trim();
   const campaign = document.getElementById(prefix+'-meta-campaign').value.trim();
-  const orderId  = eventData.eventIdOverride || leadId || ('AUTO-'+(clienteData?.whatsapp||'').slice(-4)+'-'+Date.now().toString(36).toUpperCase());
+  const ctwaClid = document.getElementById(prefix+'-ctwa-clid')?.value.trim() || '';
+  const leadOrigen = document.getElementById(prefix+'-lead-origen')?.value.trim() || '';
+  const esCTWA   = leadOrigen==='ctwa' && ctwaClid;
+  const orderId  = eventData.eventIdOverride || leadId || (ctwaClid ? 'CTWA-'+ctwaClid.slice(-8) : null) || ('AUTO-'+(clienteData?.whatsapp||'').slice(-4)+'-'+Date.now().toString(36).toUpperCase());
   const eventTime= Math.floor(Date.now()/1000);
   const tel      = (clienteData?.whatsapp||'').replace(/\D/g,'');
   const [h_em,h_fn,h_ln,h_ph,h_zp,h_st,h_ct,h_country] = await Promise.all([
@@ -4163,19 +4275,33 @@ async function dispararEventoPurchase(eventData, clienteData, prefix){
     sha256Meta(clienteData?.localidad||''),
     sha256Meta('ar'),
   ]);
-  const user_data = {
-    em:h_em, fn:h_fn, ln:h_ln, ph:h_ph,
-    zp:h_zp, st:h_st, ct:h_ct, country:h_country,
-    ...(fbc ? {fbc} : {}),
-    ...(fbp ? {fbp} : {}),
-    ...(clientIp ? {client_ip_address:clientIp} : {}),
-    ...(userAgent ? {client_user_agent:userAgent} : {}),
-  };
+  // user_data se arma distinto según el origen del lead
+  let user_data;
+  if(esCTWA){
+    // Lead CTWA (WhatsApp): usa ctwa_clid, NO fbc/fbp
+    user_data = {
+      em:h_em, fn:h_fn, ln:h_ln, ph:h_ph,
+      zp:h_zp, st:h_st, ct:h_ct, country:h_country,
+      ctwa_clid: ctwaClid,
+      whatsapp_business_account_id: WABA_ID,
+    };
+  } else {
+    // Lead web (formulario): usa fbc/fbp/ip/ua
+    user_data = {
+      em:h_em, fn:h_fn, ln:h_ln, ph:h_ph,
+      zp:h_zp, st:h_st, ct:h_ct, country:h_country,
+      ...(fbc ? {fbc} : {}),
+      ...(fbp ? {fbp} : {}),
+      ...(clientIp ? {client_ip_address:clientIp} : {}),
+      ...(userAgent ? {client_user_agent:userAgent} : {}),
+    };
+  }
   const payload = { data:[{
     event_name:    eventName,
     event_time:    eventTime,
     event_id:      `${orderId}-${eventName.toLowerCase()}-${eventTime}`,
-    action_source: 'other',
+    action_source: esCTWA ? 'business_messaging' : 'other',
+    ...(esCTWA ? { messaging_channel: 'whatsapp' } : {}),
     user_data,
     custom_data:{
       content_name:  eventData.nombre||'',
@@ -4194,8 +4320,9 @@ async function dispararEventoPurchase(eventData, clienteData, prefix){
     const res  = await fetch(CAPI_URL, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
     const json = await res.json();
     if(res.ok && json.events_received>0){
-      console.log(`✅ Meta ${eventName} enviado — ID:`, orderId, '| USD:', totalUSD);
-      showToast(`📊 Evento ${eventName} enviado a Meta — U$D ${totalUSD}`);
+      const canal = esCTWA ? 'WhatsApp/CTWA' : 'Web';
+      console.log(`✅ Meta ${eventName} (${canal}) enviado — ID:`, orderId, '| USD:', totalUSD);
+      showToast(`📊 Evento ${eventName} enviado a Meta (${canal}) — U$D ${totalUSD}`);
     } else {
       console.error('Meta API error:', json);
       showToast('⚠️ El evento se guardó pero Meta devolvió error. Revisá la consola.','error');
