@@ -645,16 +645,10 @@ textarea.form-input{resize:vertical;min-height:60px;}
 <div class="page" id="page-stock">
   <div class="section-header"><h1>Stock</h1></div>
 
-  <!-- SUCURSALES -->
-  <div class="card" style="margin-bottom:14px;">
-    <div class="card-title" style="margin-bottom:10px;">Sucursales</div>
-    <div id="stock-sucursales-checks" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
-  </div>
-
   <!-- PLANILLA DE STOCK -->
   <div class="card">
-    <div class="card-title" style="margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
-      <span>Productos</span>
+    <div style="margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+      <div id="stock-sucursales-checks" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;"></div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
         <select class="form-select" id="stock-ordenar" style="max-width:160px;font-size:13px;padding:7px 10px;" onchange="renderStockTabla()">
           <option value="alfabetico">Ordenar: Alfabético</option>
@@ -4371,13 +4365,13 @@ function renderStockSucursalesChecks(){
     return;
   }
   cont.innerHTML = [
-    `<label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:5px 12px;background:var(--bg2);border-radius:var(--radius);border:1px solid var(--accent);font-size:13px;font-weight:600;">
-      <input type="checkbox" id="stock-suc-todas" checked onchange="toggleStockTodasSucursales(this)" style="accent-color:var(--accent);width:14px;height:14px;">
+    `<label style="display:flex;align-items:center;gap:5px;cursor:pointer;padding:5px 10px;background:var(--bg2);border-radius:var(--radius);border:1px solid var(--accent);font-size:12px;font-weight:600;">
+      <input type="checkbox" id="stock-suc-todas" checked onchange="toggleStockTodasSucursales(this)" style="accent-color:var(--accent);width:13px;height:13px;">
       Todas
     </label>`,
     ...sucursales.map(s=>`
-      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:5px 12px;background:var(--bg2);border-radius:var(--radius);border:1px solid var(--border);font-size:13px;">
-        <input type="checkbox" class="stock-suc-chk" value="${s}" checked onchange="renderStockTabla()" style="accent-color:var(--accent);width:14px;height:14px;">
+      <label style="display:flex;align-items:center;gap:5px;cursor:pointer;padding:5px 10px;background:var(--bg2);border-radius:var(--radius);border:1px solid var(--border);font-size:12px;">
+        <input type="checkbox" class="stock-suc-chk" value="${s}" checked onchange="renderStockTabla()" style="accent-color:var(--accent);width:13px;height:13px;">
         ${s}
       </label>`)
   ].join('');
