@@ -649,13 +649,15 @@ textarea.form-input{resize:vertical;min-height:60px;}
   <div class="card">
     <div style="margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
       <div id="stock-sucursales-checks" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;"></div>
-      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-        <select class="form-select" id="stock-ordenar" style="max-width:160px;font-size:13px;padding:7px 10px;" onchange="renderStockTabla()">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:nowrap;">
+        <select class="form-select" id="stock-ordenar" style="width:170px;height:38px;font-size:13px;padding:0 10px;flex-shrink:0;" onchange="renderStockTabla()">
           <option value="alfabetico">Ordenar: Alfabético</option>
           <option value="precio">Ordenar: Precio</option>
+          <option value="precio_des">Ordenar: Precio Des</option>
           <option value="stock">Ordenar: Stock</option>
+          <option value="stock_des">Ordenar: Stock Des</option>
         </select>
-        <input class="form-input" id="stock-search" type="text" placeholder="🔍 Buscar producto, SKU..." style="max-width:220px;font-size:13px;padding:7px 10px;" oninput="renderStockTabla()">
+        <input class="form-input" id="stock-search" type="text" placeholder="🔍 Buscar..." style="width:200px;height:38px;font-size:13px;padding:0 10px;flex-shrink:0;" oninput="renderStockTabla()">
       </div>
     </div>
     <div id="stock-tabla-scroll" style="overflow-y:auto;overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius);">
@@ -4365,12 +4367,12 @@ function renderStockSucursalesChecks(){
     return;
   }
   cont.innerHTML = [
-    `<label style="display:flex;align-items:center;gap:5px;cursor:pointer;padding:5px 10px;background:var(--bg2);border-radius:var(--radius);border:1px solid var(--accent);font-size:12px;font-weight:600;">
+    `<label style="display:flex;align-items:center;gap:5px;cursor:pointer;height:38px;padding:0 12px;background:var(--bg2);border-radius:var(--radius);border:1px solid var(--accent);font-size:12px;font-weight:600;">
       <input type="checkbox" id="stock-suc-todas" checked onchange="toggleStockTodasSucursales(this)" style="accent-color:var(--accent);width:13px;height:13px;">
       Todas
     </label>`,
     ...sucursales.map(s=>`
-      <label style="display:flex;align-items:center;gap:5px;cursor:pointer;padding:5px 10px;background:var(--bg2);border-radius:var(--radius);border:1px solid var(--border);font-size:12px;">
+      <label style="display:flex;align-items:center;gap:5px;cursor:pointer;height:38px;padding:0 12px;background:var(--bg2);border-radius:var(--radius);border:1px solid var(--border);font-size:12px;">
         <input type="checkbox" class="stock-suc-chk" value="${s}" checked onchange="renderStockTabla()" style="accent-color:var(--accent);width:13px;height:13px;">
         ${s}
       </label>`)
@@ -4410,8 +4412,12 @@ function renderStockTabla(){
   if(ordenar==='alfabetico'){
     items.sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||'','es',{sensitivity:'base'}));
   } else if(ordenar==='precio'){
+    items.sort((a,b)=>(parseFloat(a.pvp)||0)-(parseFloat(b.pvp)||0));
+  } else if(ordenar==='precio_des'){
     items.sort((a,b)=>(parseFloat(b.pvp)||0)-(parseFloat(a.pvp)||0));
   } else if(ordenar==='stock'){
+    items.sort((a,b)=>(parseInt(a.cantidad)||0)-(parseInt(b.cantidad)||0));
+  } else if(ordenar==='stock_des'){
     items.sort((a,b)=>(parseInt(b.cantidad)||0)-(parseInt(a.cantidad)||0));
   }
   if(!items.length){
