@@ -656,15 +656,15 @@ textarea.form-input{resize:vertical;min-height:60px;}
     <div class="card-title" style="margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
       <span>Productos</span>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-        <input class="form-input" id="stock-search" type="text" placeholder="🔍 Buscar producto, SKU..." style="max-width:220px;font-size:13px;padding:7px 10px;" oninput="renderStockTabla()">
-        <select class="form-select" id="stock-ordenar" style="max-width:150px;font-size:13px;padding:7px 10px;" onchange="renderStockTabla()">
+        <select class="form-select" id="stock-ordenar" style="max-width:160px;font-size:13px;padding:7px 10px;" onchange="renderStockTabla()">
           <option value="alfabetico">Ordenar: Alfabético</option>
           <option value="precio">Ordenar: Precio</option>
           <option value="stock">Ordenar: Stock</option>
         </select>
+        <input class="form-input" id="stock-search" type="text" placeholder="🔍 Buscar producto, SKU..." style="max-width:220px;font-size:13px;padding:7px 10px;" oninput="renderStockTabla()">
       </div>
     </div>
-    <div style="overflow-y:auto;overflow-x:auto;max-height:calc(20 * 42px);border:1px solid var(--border);border-radius:var(--radius);">
+    <div id="stock-tabla-scroll" style="overflow-y:auto;overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius);">
       <table class="items-table" id="stock-tabla">
         <thead style="position:sticky;top:0;z-index:2;background:var(--bg2);">
           <tr>
@@ -4436,6 +4436,21 @@ function renderStockTabla(){
       <td style="font-family:monospace;font-size:12px;">${p.serial||'—'}</td>
     </tr>`).join('');
   updateStockButtons();
+  ajustarAlturaStock();
+}
+
+// Fija la altura del contenedor a exactamente 20 filas (con scroll si hay más)
+function ajustarAlturaStock(){
+  const scroll = document.getElementById('stock-tabla-scroll');
+  const tbody = document.getElementById('stock-tabla-body');
+  const thead = document.querySelector('#stock-tabla thead');
+  if(!scroll || !tbody) return;
+  const filas = tbody.querySelectorAll('tr');
+  if(!filas.length){ scroll.style.maxHeight=''; return; }
+  const altoFila = filas[0].offsetHeight || 42;
+  const altoHead = thead ? thead.offsetHeight : 40;
+  // 20 filas + encabezado
+  scroll.style.maxHeight = (altoHead + altoFila*20) + 'px';
 }
 
 // Actualiza el listado sincronizando desde el e-commerce si hay URL configurada
