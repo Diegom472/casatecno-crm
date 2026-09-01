@@ -653,13 +653,20 @@ textarea.form-input{resize:vertical;min-height:60px;}
 
   <!-- PLANILLA DE STOCK -->
   <div class="card">
-    <div class="card-title" style="margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;">
+    <div class="card-title" style="margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
       <span>Productos</span>
-      <input class="form-input" id="stock-search" type="text" placeholder="🔍 Buscar producto, SKU..." style="max-width:240px;font-size:13px;padding:7px 10px;" oninput="renderStockTabla()">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <input class="form-input" id="stock-search" type="text" placeholder="🔍 Buscar producto, SKU..." style="max-width:220px;font-size:13px;padding:7px 10px;" oninput="renderStockTabla()">
+        <select class="form-select" id="stock-ordenar" style="max-width:150px;font-size:13px;padding:7px 10px;" onchange="renderStockTabla()">
+          <option value="alfabetico">Ordenar: Alfabético</option>
+          <option value="precio">Ordenar: Precio</option>
+          <option value="stock">Ordenar: Stock</option>
+        </select>
+      </div>
     </div>
-    <div style="overflow-x:auto;">
+    <div style="overflow-y:auto;overflow-x:auto;max-height:calc(20 * 42px);border:1px solid var(--border);border-radius:var(--radius);">
       <table class="items-table" id="stock-tabla">
-        <thead>
+        <thead style="position:sticky;top:0;z-index:2;background:var(--bg2);">
           <tr>
             <th style="width:34px;"><input type="checkbox" id="stock-check-all" onchange="toggleStockCheckAll(this)"></th>
             <th>Producto</th>
@@ -676,8 +683,9 @@ textarea.form-input{resize:vertical;min-height:60px;}
     <div class="btn-row" style="margin-top:12px;">
       <button class="btn btn-secondary btn-sm" id="stock-btn-enviar" onclick="abrirEnviarStock()" disabled>📤 Enviar</button>
       <button class="btn btn-secondary btn-sm" id="stock-btn-editar" onclick="abrirEditarStock()" disabled>✏️ Editar</button>
-      <button class="btn btn-primary btn-sm" onclick="abrirNuevoStock()">＋ Nuevo producto</button>
+      <button class="btn btn-primary btn-sm" onclick="actualizarListadoStock()">🔄 Actualizar</button>
       <span id="stock-selected-count" style="font-size:12px;color:var(--text3);align-self:center;"></span>
+      <span id="stock-update-status" style="font-size:11px;color:var(--text3);align-self:center;margin-left:auto;"></span>
     </div>
   </div>
 
@@ -2148,6 +2156,8 @@ function initApp(){
   if(!S.notificaciones) S.notificaciones={};
   if(!S.userEvents) S.userEvents=[];
   limpiarFicha();
+  // Actualizar stock desde e-commerce al iniciar (silencioso)
+  if(S.stockApiUrl){ setTimeout(()=>actualizarListadoStock(true), 1500); }
 }
 
 function fillNegocioAdmin(){
@@ -3074,6 +3084,7 @@ function guardarDocumento(){
 // ══════════════════════════════════════════════
 function openNuevaCompra(){
   if(!S.currentClienteId){ showToast('Guardá o cargá un cliente primero','error'); return; }
+  if(S.stockApiUrl){ actualizarListadoStock(true); }
   const id='NP'+Date.now();
   setv('compra-id-badge', id);
   S.retiraCompra=1;
@@ -3522,6 +3533,7 @@ function getItemsFromTable(tbodyId){
 // ══════════════════════════════════════════════
 function openNuevoServicio(){
   if(!S.currentClienteId){ showToast('Guardá o cargá un cliente primero','error'); return; }
+  if(S.stockApiUrl){ actualizarListadoStock(true); }
   const id='SV'+Date.now();
   setv('servicio-id-badge', id);
   S.retiraServ=1;
@@ -4296,7 +4308,7 @@ async function dispararEventoPurchase(eventData, clienteData, prefix){
       ...(userAgent ? {client_user_agent:userAgent} : {}),
     };
   }
-  const payload = { data:[{
+  const mainEvent = {
     event_name:    eventName,
     event_time:    eventTime,
     event_id:      `${orderId}-${eventName.toLowerCase()}-${eventTime}`,
@@ -4313,7 +4325,14 @@ async function dispararEventoPurchase(eventData, clienteData, prefix){
       ...(adId     ? {ad_id:adId}              : {}),
       ...(campaign ? {campaign_name:campaign}  : {}),
     },
-  }]};
+  };
+  // Evento adicional QualifiedLead con los mismos datos
+  const qualifiedEvent = {
+    ...mainEvent,
+    event_name: 'QualifiedLead',
+    event_id:   `${orderId}-qualifiedlead-${eventTime}`,
+  };
+  const payload = { data:[ mainEvent, qualifiedEvent ] };
   if(cfg.testCode) payload.test_event_code = cfg.testCode;
   const CAPI_URL = `https://graph.facebook.com/v19.0/${cfg.pixelId}/events?access_token=${cfg.token}`;
   try {
@@ -4321,8 +4340,8 @@ async function dispararEventoPurchase(eventData, clienteData, prefix){
     const json = await res.json();
     if(res.ok && json.events_received>0){
       const canal = esCTWA ? 'WhatsApp/CTWA' : 'Web';
-      console.log(`✅ Meta ${eventName} (${canal}) enviado — ID:`, orderId, '| USD:', totalUSD);
-      showToast(`📊 Evento ${eventName} enviado a Meta (${canal}) — U$D ${totalUSD}`);
+      console.log(`✅ Meta ${eventName} + QualifiedLead (${canal}) enviados — ID:`, orderId, '| USD:', totalUSD);
+      showToast(`📊 ${eventName} + QualifiedLead enviados a Meta (${canal}) — U$D ${totalUSD}`);
     } else {
       console.error('Meta API error:', json);
       showToast('⚠️ El evento se guardó pero Meta devolvió error. Revisá la consola.','error');
@@ -4382,6 +4401,7 @@ function renderStockTabla(){
   if(!tbody) return;
   const sucsFiltro = getStockSucursalesSeleccionadas();
   const search = (document.getElementById('stock-search')?.value||'').toLowerCase().trim();
+  const ordenar = document.getElementById('stock-ordenar')?.value || 'alfabetico';
   let items = (S.stock||[]).filter(p=>{
     if(sucsFiltro && !sucsFiltro.includes(p.sucursal||'')) return false;
     if(search){
@@ -4392,6 +4412,14 @@ function renderStockTabla(){
     }
     return true;
   });
+  // Ordenar
+  if(ordenar==='alfabetico'){
+    items.sort((a,b)=>(a.nombre||'').localeCompare(b.nombre||'','es',{sensitivity:'base'}));
+  } else if(ordenar==='precio'){
+    items.sort((a,b)=>(parseFloat(b.pvp)||0)-(parseFloat(a.pvp)||0));
+  } else if(ordenar==='stock'){
+    items.sort((a,b)=>(parseInt(b.cantidad)||0)-(parseInt(a.cantidad)||0));
+  }
   if(!items.length){
     tbody.innerHTML='<tr><td colspan="7"><div class="empty-state"><div class="empty-state-icon">📦</div><div class="empty-state-text">Sin productos en stock para esta selección</div></div></td></tr>';
     updateStockButtons();
@@ -4408,6 +4436,19 @@ function renderStockTabla(){
       <td style="font-family:monospace;font-size:12px;">${p.serial||'—'}</td>
     </tr>`).join('');
   updateStockButtons();
+}
+
+// Actualiza el listado sincronizando desde el e-commerce si hay URL configurada
+async function actualizarListadoStock(silencioso){
+  const statusEl = document.getElementById('stock-update-status');
+  if(S.stockApiUrl){
+    if(statusEl){ statusEl.textContent='🔄 Actualizando...'; statusEl.style.color='var(--text3)'; }
+    await sincronizarStockApi(true);
+    if(statusEl){ statusEl.textContent='✅ Actualizado '+new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}); statusEl.style.color='var(--green)'; }
+  } else {
+    renderStockTabla();
+    if(!silencioso && statusEl){ statusEl.textContent='ℹ️ Configurá la URL del feed para sincronizar'; statusEl.style.color='var(--text3)'; }
+  }
 }
 
 function updateStockButtons(){
@@ -4599,12 +4640,11 @@ function guardarStockApiUrl(){
   showToast('✅ URL guardada');
 }
 
-async function sincronizarStockApi(){
+async function sincronizarStockApi(silencioso){
   const url = S.stockApiUrl || document.getElementById('stock-api-url')?.value.trim();
   const statusEl = document.getElementById('stock-api-status');
-  if(!url){ showToast('Configurá la URL del endpoint primero','error'); return; }
-  statusEl.textContent='🔄 Sincronizando...';
-  statusEl.style.color='var(--text3)';
+  if(!url){ if(!silencioso) showToast('Configurá la URL del endpoint primero','error'); return; }
+  if(statusEl && !silencioso){ statusEl.textContent='🔄 Sincronizando...'; statusEl.style.color='var(--text3)'; }
   try{
     const res = await fetch(url);
     const contentType = res.headers.get('content-type')||'';
@@ -4634,13 +4674,11 @@ async function sincronizarStockApi(){
     });
     saveS();
     renderStockTabla();
-    statusEl.style.color='var(--green)';
-    statusEl.textContent='✅ Sincronizado: '+agregados+' nuevos, '+actualizados+' actualizados';
-    showToast('✅ Stock sincronizado desde e-commerce');
+    if(statusEl && !silencioso){ statusEl.style.color='var(--green)'; statusEl.textContent='✅ Sincronizado: '+agregados+' nuevos, '+actualizados+' actualizados'; }
+    if(!silencioso) showToast('✅ Stock sincronizado desde e-commerce');
   } catch(e){
     console.error('Stock sync error:', e);
-    statusEl.style.color='var(--accent)';
-    statusEl.textContent='❌ Error al conectar. Puede ser CORS — ver nota abajo.';
+    if(statusEl && !silencioso){ statusEl.style.color='var(--accent)'; statusEl.textContent='❌ Error al conectar. Puede ser CORS — ver nota abajo.'; }
   }
 }
 
