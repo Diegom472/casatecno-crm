@@ -839,6 +839,13 @@ textarea.form-input{resize:vertical;min-height:60px;}
             </div>
           </div>
           <div class="form-group">
+            <label class="form-label">Moneda a reportar</label>
+            <select class="form-select" id="meta-moneda" onchange="toggleCotizacionMeta()">
+              <option value="USD">USD — Dólares (convierte con cotización)</option>
+              <option value="ARS">ARS — Pesos (envía el total tal cual)</option>
+            </select>
+          </div>
+          <div class="form-group" id="meta-cotiz-group">
             <label class="form-label">Cotización USD (AR$ por 1 dólar)</label>
             <input class="form-input" id="meta-cotizacion" type="text" placeholder="1450" oninput="formatMetaCotizacion(this)">
           </div>
@@ -862,6 +869,32 @@ textarea.form-input{resize:vertical;min-height:60px;}
           <button class="btn btn-primary btn-sm" onclick="guardarConfigMeta()">💾 Guardar configuración Meta</button>
           <span id="meta-status" style="font-size:12px;color:var(--text3);align-self:center;">No configurado</span>
         </div>
+
+        <hr class="divider">
+        <div class="admin-section-title">🔄 Reenviar eventos a Meta</div>
+        <div class="notice" style="font-size:11px;margin-bottom:10px;">Reenvía los eventos Purchase/Lead + QualifiedLead de las notas del período seleccionado, usando la <strong>moneda configurada arriba</strong> y conservando la <strong>fecha original</strong> de cada venta. Usa el mismo event_id para que Meta reemplace (no duplica).</div>
+        <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;">
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label">Período</label>
+            <select class="form-select" id="meta-reenvio-rango" style="max-width:200px;" onchange="toggleReenvioPersonalizado()">
+              <option value="7">Últimos 7 días</option>
+              <option value="15">Últimos 15 días</option>
+              <option value="30">Últimos 30 días</option>
+              <option value="todos">Todos</option>
+              <option value="personalizado">Personalizado</option>
+            </select>
+          </div>
+          <div class="form-group" id="meta-reenvio-desde-grp" style="margin-bottom:0;display:none;">
+            <label class="form-label">Desde</label>
+            <input class="form-input" id="meta-reenvio-desde" type="date" style="font-size:12px;">
+          </div>
+          <div class="form-group" id="meta-reenvio-hasta-grp" style="margin-bottom:0;display:none;">
+            <label class="form-label">Hasta</label>
+            <input class="form-input" id="meta-reenvio-hasta" type="date" style="font-size:12px;">
+          </div>
+          <button class="btn btn-secondary btn-sm" onclick="reenviarEventosMeta()">🔄 Reenviar</button>
+        </div>
+        <div id="meta-reenvio-status" style="font-size:12px;margin-top:8px;display:none;"></div>
       </div>
     </div>
     <div class="admin-card">
@@ -3636,6 +3669,11 @@ function guardarCompra(imprimir){
     pagosExtra: getPagosExtra('compra'),
     idConsulta: v('compra-id-consulta').trim(),
     fbc: v('compra-fbc').trim(),
+    fbp: v('compra-fbp').trim(),
+    metaIp: v('compra-meta-ip').trim(),
+    metaUa: v('compra-meta-ua').trim(),
+    ctwaClid: v('compra-ctwa-clid').trim(),
+    leadOrigen: v('compra-lead-origen').trim(),
     cuotas:document.getElementById('compra-cuotas').value,
     recargo:v('compra-recargo'),
     falta: parseN(document.getElementById('compra-falta').textContent),
@@ -3713,6 +3751,11 @@ function guardarServicio(imprimir){
     pagosExtra: getPagosExtra('serv'),
     idConsulta: v('serv-id-consulta').trim(),
     fbc: v('serv-fbc').trim(),
+    fbp: v('serv-fbp').trim(),
+    metaIp: v('serv-meta-ip').trim(),
+    metaUa: v('serv-meta-ua').trim(),
+    ctwaClid: v('serv-ctwa-clid').trim(),
+    leadOrigen: v('serv-lead-origen').trim(),
     cuotas:document.getElementById('serv-cuotas').value,
     recargo:v('serv-recargo'),
     falta: parseN(document.getElementById('serv-falta').textContent),
@@ -4085,15 +4128,152 @@ function formatMetaCotizacion(inp){
   inp.value = raw ? parseInt(raw).toLocaleString('es-AR') : '';
 }
 
+function toggleReenvioPersonalizado(){
+  const rango = document.getElementById('meta-reenvio-rango').value;
+  const show = rango==='personalizado' ? '' : 'none';
+  document.getElementById('meta-reenvio-desde-grp').style.display = show;
+  document.getElementById('meta-reenvio-hasta-grp').style.display = show;
+}
+
+// Construye y envía el payload a Meta desde un evento GUARDADO (para reenvío masivo)
+async function enviarEventoDesdeNota(ev, cliente){
+  const cfg = S.metaConfig||{};
+  if(!cfg.pixelId||!cfg.token) return {ok:false, motivo:'sin config'};
+  const moneda = cfg.moneda || 'USD';
+  const cotiz = parseFloat((cfg.cotizacion||'1').replace(/\./g,'').replace(/,/g,'.')) || 1;
+  const totalARS = parseFloat(ev.data?.total)||0;
+  const valorReportado = moneda==='ARS' ? parseFloat(totalARS.toFixed(2)) : parseFloat((totalARS/cotiz).toFixed(2));
+  const currencyReportada = moneda==='ARS' ? 'ARS' : 'USD';
+  // Umbrales
+  const minPurchase = parseFloat(cfg.minPurchase)||0;
+  const minLead     = parseFloat(cfg.minLead)||0;
+  let eventName = 'Purchase';
+  if(minPurchase>0 || minLead>0){
+    if(totalARS >= minPurchase && minPurchase>0){ eventName='Purchase'; }
+    else if(totalARS >= minLead && minLead>0){ eventName='Lead'; }
+    else if(minPurchase>0 && minLead===0){ eventName='Purchase'; }
+    else { return {ok:false, motivo:'bajo umbral'}; }
+  }
+  // Datos guardados en la nota
+  const d = ev.data||{};
+  const leadId   = d.idConsulta || '';
+  const fbc      = d.fbc || '';
+  const fbp      = d.fbp || '';
+  const clientIp = d.metaIp || '';
+  const userAgent= d.metaUa || '';
+  const ctwaClid = d.ctwaClid || '';
+  const esCTWA   = (d.leadOrigen==='ctwa') && ctwaClid;
+  const orderId  = leadId || (ctwaClid ? 'CTWA-'+ctwaClid.slice(-8) : null) || ('AUTO-'+(cliente?.whatsapp||'').slice(-4)+'-'+(ev.id||''));
+  // event_time = fecha ORIGINAL de la venta
+  let eventTime = Math.floor(Date.now()/1000);
+  if(ev.fecha){
+    const [dd,mm,yy] = ev.fecha.split('/');
+    if(dd&&mm&&yy){
+      const fechaVenta = new Date(parseInt(yy), parseInt(mm)-1, parseInt(dd), 12, 0, 0);
+      eventTime = Math.floor(fechaVenta.getTime()/1000);
+    }
+  }
+  const tel = (cliente?.whatsapp||'').replace(/\D/g,'');
+  const [h_em,h_fn,h_ln,h_ph,h_zp,h_st,h_ct,h_country] = await Promise.all([
+    sha256Meta(cliente?.email||''),
+    sha256Meta(cliente?.firstName || (cliente?.nombre||'').split(' ')[0]),
+    sha256Meta(cliente?.lastName  || (cliente?.nombre||'').split(' ').slice(1).join(' ')),
+    sha256Meta(tel),
+    sha256Meta(cliente?.cp||''),
+    sha256Meta(cliente?.provincia||''),
+    sha256Meta(cliente?.localidad||''),
+    sha256Meta('ar'),
+  ]);
+  let user_data;
+  if(esCTWA){
+    user_data = { em:h_em, fn:h_fn, ln:h_ln, ph:h_ph, zp:h_zp, st:h_st, ct:h_ct, country:h_country, ctwa_clid:ctwaClid, whatsapp_business_account_id:WABA_ID };
+  } else {
+    user_data = { em:h_em, fn:h_fn, ln:h_ln, ph:h_ph, zp:h_zp, st:h_st, ct:h_ct, country:h_country,
+      ...(fbc?{fbc}:{}), ...(fbp?{fbp}:{}), ...(clientIp?{client_ip_address:clientIp}:{}), ...(userAgent?{client_user_agent:userAgent}:{}) };
+  }
+  const mainEvent = {
+    event_name: eventName, event_time: eventTime,
+    event_id: `${orderId}-${eventName.toLowerCase()}-${eventTime}`,
+    action_source: esCTWA ? 'business_messaging' : 'other',
+    ...(esCTWA ? { messaging_channel:'whatsapp' } : {}),
+    user_data,
+    custom_data:{ content_name: ev.nombre||'', content_ids:[orderId], content_type:'product', order_id:orderId, value:valorReportado, currency:currencyReportada },
+  };
+  const qualifiedEvent = { ...mainEvent, event_name:'QualifiedLead', event_id:`${orderId}-qualifiedlead-${eventTime}` };
+  const payload = { data:[ mainEvent, qualifiedEvent ] };
+  if(cfg.testCode) payload.test_event_code = cfg.testCode;
+  const CAPI_URL = `https://graph.facebook.com/v19.0/${cfg.pixelId}/events?access_token=${cfg.token}`;
+  try{
+    const res = await fetch(CAPI_URL, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+    const json = await res.json();
+    return (res.ok && json.events_received>0) ? {ok:true, eventName} : {ok:false, motivo:'rechazado', json};
+  } catch(e){ return {ok:false, motivo:e.message}; }
+}
+
+async function reenviarEventosMeta(){
+  const cfg = S.metaConfig||{};
+  if(!cfg.pixelId||!cfg.token){ showToast('Configurá Meta primero','error'); return; }
+  const rango = document.getElementById('meta-reenvio-rango').value;
+  const statusEl = document.getElementById('meta-reenvio-status');
+  // Determinar rango de fechas
+  let desde=null, hasta=null;
+  const hoy = new Date(); hoy.setHours(23,59,59,999);
+  if(rango==='todos'){ desde=new Date(2000,0,1); hasta=hoy; }
+  else if(rango==='personalizado'){
+    const dv=document.getElementById('meta-reenvio-desde').value;
+    const hv=document.getElementById('meta-reenvio-hasta').value;
+    if(!dv||!hv){ showToast('Elegí ambas fechas','error'); return; }
+    desde=new Date(dv+'T00:00:00'); hasta=new Date(hv+'T23:59:59');
+  } else {
+    const dias=parseInt(rango);
+    desde=new Date(); desde.setDate(desde.getDate()-(dias-1)); desde.setHours(0,0,0,0);
+    hasta=hoy;
+  }
+  // Filtrar notas de compra/servicio en el rango (no borradores, no editadas)
+  const notas = S.eventos.filter(e=>{
+    if(!(e.tipo==='COMPRA'||e.tipo==='SERVICIO')) return false;
+    if(e.esBorrador||e.editadoPor) return false;
+    if(!e.fecha) return false;
+    const [dd,mm,yy]=e.fecha.split('/');
+    if(!dd||!mm||!yy) return false;
+    const f=new Date(parseInt(yy),parseInt(mm)-1,parseInt(dd),12,0,0);
+    return f>=desde && f<=hasta;
+  });
+  if(!notas.length){ showToast('No hay notas en ese período','error'); return; }
+  const totalNotas=notas.length;
+  if(!confirm(`Vas a reenviar ${totalNotas} nota(s) a Meta con la moneda ${cfg.moneda||'USD'}. ¿Continuar?`)) return;
+  statusEl.style.display='block';
+  statusEl.style.color='var(--text3)';
+  let ok=0, fail=0;
+  for(let i=0;i<notas.length;i++){
+    const ev=notas[i];
+    const cliente=S.clientes.find(c=>c.id===ev.clienteId);
+    statusEl.textContent=`🔄 Reenviando ${i+1}/${totalNotas}... (✅ ${ok} · ❌ ${fail})`;
+    const r=await enviarEventoDesdeNota(ev, cliente);
+    if(r.ok) ok++; else fail++;
+    await new Promise(res=>setTimeout(res,250)); // throttle para no saturar la API
+  }
+  statusEl.style.color = fail? 'var(--yellow)':'var(--green)';
+  statusEl.textContent=`✅ Reenvío completo: ${ok} enviados, ${fail} fallidos de ${totalNotas} notas.`;
+  showToast(`🔄 Reenvío completo: ${ok}/${totalNotas}`);
+}
+
+function toggleCotizacionMeta(){
+  const moneda = document.getElementById('meta-moneda').value;
+  const grp = document.getElementById('meta-cotiz-group');
+  if(grp) grp.style.display = moneda==='ARS' ? 'none' : '';
+}
+
 function guardarConfigMeta(){
   const pixelId  = document.getElementById('meta-pixel-id').value.trim();
   const token    = document.getElementById('meta-access-token').value.trim();
   const cotiz    = document.getElementById('meta-cotizacion').value.trim();
   const testCode = document.getElementById('meta-test-code').value.trim();
+  const moneda   = document.getElementById('meta-moneda').value;
   const minPurchase = parseN(document.getElementById('meta-min-purchase').value.trim());
   const minLead     = parseN(document.getElementById('meta-min-lead').value.trim());
   if(!pixelId||!token){ showToast('Pixel ID y Access Token son obligatorios','error'); return; }
-  S.metaConfig = { pixelId, token, cotizacion:cotiz, testCode, minPurchase, minLead };
+  S.metaConfig = { pixelId, token, cotizacion:cotiz, testCode, minPurchase, minLead, moneda };
   saveS();
   document.getElementById('meta-status').textContent='✅ Configurado';
   document.getElementById('meta-status').style.color='var(--green)';
@@ -4109,6 +4289,8 @@ function cargarConfigMetaAdmin(){
     setv('meta-test-code', cfg.testCode||'');
     setv('meta-min-purchase', cfg.minPurchase?fmtN(cfg.minPurchase):'');
     setv('meta-min-lead', cfg.minLead?fmtN(cfg.minLead):'');
+    document.getElementById('meta-moneda').value = cfg.moneda||'USD';
+    toggleCotizacionMeta();
     document.getElementById('meta-status').textContent='✅ Configurado';
     document.getElementById('meta-status').style.color='var(--green)';
   }
@@ -4247,9 +4429,12 @@ async function sha256Meta(str){
 async function dispararEventoPurchase(eventData, clienteData, prefix){
   const cfg = S.metaConfig||{};
   if(!cfg.pixelId||!cfg.token){ return; } // silently skip if not configured
+  const moneda = cfg.moneda || 'USD';
   const cotiz = parseFloat((cfg.cotizacion||'1').replace(/\./g,'').replace(/,/g,'.')) || 1;
   const totalARS = parseFloat(eventData.total)||0;
-  const totalUSD = parseFloat((totalARS/cotiz).toFixed(2));
+  // Valor y moneda a reportar según configuración
+  const valorReportado = moneda==='ARS' ? parseFloat(totalARS.toFixed(2)) : parseFloat((totalARS/cotiz).toFixed(2));
+  const currencyReportada = moneda==='ARS' ? 'ARS' : 'USD';
   // Determinar tipo de evento según umbrales
   const minPurchase = parseFloat(cfg.minPurchase)||0;
   const minLead     = parseFloat(cfg.minLead)||0;
@@ -4316,8 +4501,8 @@ async function dispararEventoPurchase(eventData, clienteData, prefix){
       content_ids:   [orderId],
       content_type:  'product',
       order_id:      orderId,
-      value:         totalUSD,
-      currency:      'USD',
+      value:         valorReportado,
+      currency:      currencyReportada,
       ...(adId     ? {ad_id:adId}              : {}),
       ...(campaign ? {campaign_name:campaign}  : {}),
     },
@@ -4336,8 +4521,8 @@ async function dispararEventoPurchase(eventData, clienteData, prefix){
     const json = await res.json();
     if(res.ok && json.events_received>0){
       const canal = esCTWA ? 'WhatsApp/CTWA' : 'Web';
-      console.log(`✅ Meta ${eventName} + QualifiedLead (${canal}) enviados — ID:`, orderId, '| USD:', totalUSD);
-      showToast(`📊 ${eventName} + QualifiedLead enviados a Meta (${canal}) — U$D ${totalUSD}`);
+      console.log(`✅ Meta ${eventName} + QualifiedLead (${canal}) enviados — ID:`, orderId, `| ${currencyReportada}:`, valorReportado);
+      showToast(`📊 ${eventName} + QualifiedLead enviados a Meta (${canal}) — ${currencyReportada} ${fmtN(valorReportado)}`);
     } else {
       console.error('Meta API error:', json);
       showToast('⚠️ El evento se guardó pero Meta devolvió error. Revisá la consola.','error');
