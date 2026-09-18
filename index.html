@@ -4173,6 +4173,11 @@ async function enviarEventoDesdeNota(ev, cliente){
       eventTime = Math.floor(fechaVenta.getTime()/1000);
     }
   }
+  // Meta rechaza eventos con event_time de más de 7 días de antigüedad.
+  // Si la venta es más vieja, se ajusta al límite permitido (hace ~6 días 23h).
+  const ahora = Math.floor(Date.now()/1000);
+  const limite7dias = ahora - (7*24*3600) + 3600; // 1h de margen
+  if(eventTime < limite7dias){ eventTime = limite7dias; }
   const tel = (cliente?.whatsapp||'').replace(/\D/g,'');
   const [h_em,h_fn,h_ln,h_ph,h_zp,h_st,h_ct,h_country] = await Promise.all([
     sha256Meta(cliente?.email||''),
@@ -4206,7 +4211,12 @@ async function enviarEventoDesdeNota(ev, cliente){
   try{
     const res = await fetch(CAPI_URL, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
     const json = await res.json();
-    return (res.ok && json.events_received>0) ? {ok:true, eventName} : {ok:false, motivo:'rechazado', json};
+    if(res.ok && json.events_received>0){
+      return {ok:true, eventName};
+    } else {
+      console.error('Meta reenvío rechazó nota', ev.id, '→', json?.error?.message||json, '| payload:', JSON.stringify(payload));
+      return {ok:false, motivo:'rechazado', json};
+    }
   } catch(e){ return {ok:false, motivo:e.message}; }
 }
 
