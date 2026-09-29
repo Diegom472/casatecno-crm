@@ -4179,7 +4179,8 @@ async function enviarEventoDesdeNota(ev, cliente){
   const limite7dias = ahora - (7*24*3600) + 3600; // 1h de margen
   if(eventTime < limite7dias){ eventTime = limite7dias; }
   const tel = (cliente?.whatsapp||'').replace(/\D/g,'');
-  const [h_em,h_fn,h_ln,h_ph,h_zp,h_st,h_ct,h_country] = await Promise.all([
+  const extIdRaw = (cliente?.dni||'').replace(/\D/g,'') || (cliente?.id||cliente?.clienteId||'');
+  const [h_em,h_fn,h_ln,h_ph,h_zp,h_st,h_ct,h_country,h_extid] = await Promise.all([
     sha256Meta(cliente?.email||''),
     sha256Meta(cliente?.firstName || (cliente?.nombre||'').split(' ')[0]),
     sha256Meta(cliente?.lastName  || (cliente?.nombre||'').split(' ').slice(1).join(' ')),
@@ -4188,12 +4189,14 @@ async function enviarEventoDesdeNota(ev, cliente){
     sha256Meta(cliente?.provincia||''),
     sha256Meta(cliente?.localidad||''),
     sha256Meta('ar'),
+    extIdRaw ? sha256Meta(extIdRaw) : Promise.resolve(''),
   ]);
+  const idData = { em:h_em, fn:h_fn, ln:h_ln, ph:h_ph, zp:h_zp, st:h_st, ct:h_ct, country:h_country, ...(h_extid?{external_id:h_extid}:{}) };
   let user_data;
   if(esCTWA){
-    user_data = { em:h_em, fn:h_fn, ln:h_ln, ph:h_ph, zp:h_zp, st:h_st, ct:h_ct, country:h_country, ctwa_clid:ctwaClid, whatsapp_business_account_id:WABA_ID };
+    user_data = { ...idData, ctwa_clid:ctwaClid, whatsapp_business_account_id:WABA_ID };
   } else {
-    user_data = { em:h_em, fn:h_fn, ln:h_ln, ph:h_ph, zp:h_zp, st:h_st, ct:h_ct, country:h_country,
+    user_data = { ...idData,
       ...(fbc?{fbc}:{}), ...(fbp?{fbp}:{}), ...(clientIp?{client_ip_address:clientIp}:{}), ...(userAgent?{client_user_agent:userAgent}:{}) };
   }
   const mainEvent = {
@@ -4468,7 +4471,9 @@ async function dispararEventoPurchase(eventData, clienteData, prefix){
   const orderId  = eventData.eventIdOverride || leadId || (ctwaClid ? 'CTWA-'+ctwaClid.slice(-8) : null) || ('AUTO-'+(clienteData?.whatsapp||'').slice(-4)+'-'+Date.now().toString(36).toUpperCase());
   const eventTime= Math.floor(Date.now()/1000);
   const tel      = (clienteData?.whatsapp||'').replace(/\D/g,'');
-  const [h_em,h_fn,h_ln,h_ph,h_zp,h_st,h_ct,h_country] = await Promise.all([
+  // external_id: DNI normalizado (solo dígitos) o, si no hay, el id del cliente. Mejora mucho el matching.
+  const extIdRaw = (clienteData?.dni||'').replace(/\D/g,'') || (clienteData?.id||clienteData?.clienteId||'');
+  const [h_em,h_fn,h_ln,h_ph,h_zp,h_st,h_ct,h_country,h_extid] = await Promise.all([
     sha256Meta(clienteData?.email||''),
     sha256Meta(clienteData?.firstName || (clienteData?.nombre||'').split(' ')[0]),
     sha256Meta(clienteData?.lastName  || (clienteData?.nombre||'').split(' ').slice(1).join(' ')),
@@ -4477,22 +4482,27 @@ async function dispararEventoPurchase(eventData, clienteData, prefix){
     sha256Meta(clienteData?.provincia||''),
     sha256Meta(clienteData?.localidad||''),
     sha256Meta('ar'),
+    extIdRaw ? sha256Meta(extIdRaw) : Promise.resolve(''),
   ]);
-  // user_data se arma distinto según el origen del lead
+  // user_data se arma distinto según el origen del lead. Los datos de identidad
+  // (em, fn, ln, ph, zp, st, ct, country, external_id) van SIEMPRE en ambos casos.
+  const idData = {
+    em:h_em, fn:h_fn, ln:h_ln, ph:h_ph,
+    zp:h_zp, st:h_st, ct:h_ct, country:h_country,
+    ...(h_extid ? {external_id:h_extid} : {}),
+  };
   let user_data;
   if(esCTWA){
     // Lead CTWA (WhatsApp): usa ctwa_clid, NO fbc/fbp
     user_data = {
-      em:h_em, fn:h_fn, ln:h_ln, ph:h_ph,
-      zp:h_zp, st:h_st, ct:h_ct, country:h_country,
+      ...idData,
       ctwa_clid: ctwaClid,
       whatsapp_business_account_id: WABA_ID,
     };
   } else {
     // Lead web (formulario): usa fbc/fbp/ip/ua
     user_data = {
-      em:h_em, fn:h_fn, ln:h_ln, ph:h_ph,
-      zp:h_zp, st:h_st, ct:h_ct, country:h_country,
+      ...idData,
       ...(fbc ? {fbc} : {}),
       ...(fbp ? {fbp} : {}),
       ...(clientIp ? {client_ip_address:clientIp} : {}),
