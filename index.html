@@ -474,6 +474,7 @@ textarea.form-input{resize:vertical;min-height:60px;}
         <button class="btn btn-secondary btn-sm" onclick="openNuevoServicio()">🔧 Nuevo Servicio</button>
         <button class="btn btn-sm" style="background:#f39c12;color:#fff;" onclick="openPedidoListo()">✅ Pedido Listo</button>
         <button class="btn btn-secondary btn-sm" onclick="goTo('califica')">⭐ Calificación</button>
+        <button class="btn btn-secondary btn-sm" onclick="openBorradoresSinCliente()">📝 Borradores <span class="badge" id="borradores-sc-count" style="display:none;">0</span></button>
       </div>
       <!-- Grupo 2: Documentos -->
       <div style="display:flex;gap:6px;flex-wrap:wrap;padding:6px 10px;background:var(--bg3);border-radius:var(--radius);border:1px solid var(--border);">
@@ -1527,6 +1528,19 @@ textarea.form-input{resize:vertical;min-height:60px;}
  </div>
 </div>
 
+<!-- ═══════════ MODAL: BORRADORES SIN CLIENTE ═══════════ -->
+<div class="modal-overlay" id="modal-borradores-sc">
+ <div class="modal" style="max-width:520px;">
+  <div class="modal-title">📝 Borradores sin cliente<button class="modal-close" onclick="closeModal('modal-borradores-sc')">✕</button></div>
+  <div style="font-size:12px;color:var(--text3);margin-bottom:10px;line-height:1.5;">
+   Notas armadas antes de tener los datos del cliente. <strong>Retomar</strong> abre la nota para seguir editándola.
+   <strong>Asignar a este cliente</strong> vincula el borrador a la ficha cargada (requiere tener un cliente cargado en la ficha).
+  </div>
+  <div id="borradores-sc-estado-cliente" style="font-size:12px;margin-bottom:10px;"></div>
+  <div id="borradores-sc-list"></div>
+ </div>
+</div>
+
 <!-- ═══════════ MODAL: VER EVENTO ═══════════ -->
 <div class="modal-overlay" id="modal-ver-evento">
  <div class="modal" style="max-width:440px;">
@@ -2017,6 +2031,7 @@ function initFirebase(){
           const c = S.clientes.find(x=>x.id===S.currentClienteId);
           if(c){ renderHistorial(); renderComprobantes(); }
         }
+        renderBorradoresSinCliente();
       } catch(e){ console.error('Firestore sync error:', e); }
     }, err=>console.error('Firestore listener error:', err));
     console.log('✅ Firebase conectado y escuchando cambios en tiempo real');
@@ -2185,6 +2200,7 @@ function initApp(){
   if(!S.notificaciones) S.notificaciones={};
   if(!S.userEvents) S.userEvents=[];
   limpiarFicha();
+  renderBorradoresSinCliente();
   // Actualizar stock desde e-commerce al iniciar (silencioso)
   if(S.stockApiUrl){ setTimeout(()=>actualizarListadoStock(true), 1500); }
 }
@@ -2575,6 +2591,7 @@ function abrirEditarCompra(ev){
   setv('compra-r1-dni',data.retira1?.dni);
   // Store original event id for marking as edited
   document.getElementById('modal-compra').setAttribute('data-editing', ev.id);
+  document.getElementById('modal-compra').removeAttribute('data-draft');
   openModal('modal-compra');
   calcTotal('compra');
 }
@@ -2625,6 +2642,7 @@ function abrirEditarServicio(ev){
   setv('serv-r1-nombre',data.retira1?.nombre);
   setv('serv-r1-dni',data.retira1?.dni);
   document.getElementById('modal-servicio').setAttribute('data-editing', ev.id);
+  document.getElementById('modal-servicio').removeAttribute('data-draft');
   openModal('modal-servicio');
   calcTotal('serv');
 }
@@ -3112,7 +3130,9 @@ function guardarDocumento(){
 //  NUEVA COMPRA
 // ══════════════════════════════════════════════
 function openNuevaCompra(){
-  if(!S.currentClienteId){ showToast('Guardá o cargá un cliente primero','error'); return; }
+  // Se permite abrir la nota SIN cliente: se guarda como borrador sin cliente y
+  // luego se asigna a la ficha desde "📝 Borradores".
+  if(!S.currentClienteId){ showToast('📝 Nota sin cliente — guardala con "Borrador" y después asignala a la ficha','info'); }
   if(S.stockApiUrl){ actualizarListadoStock(true); }
   const id='NP'+Date.now();
   setv('compra-id-badge', id);
@@ -3128,6 +3148,7 @@ function openNuevaCompra(){
   document.getElementById('compra-falta').textContent='$0';
   document.getElementById('compra-items-body').innerHTML='';
   document.getElementById('modal-compra').removeAttribute('data-editing');
+  document.getElementById('modal-compra').removeAttribute('data-draft');
   resetRetiraEnvio('compra');
   resetPagosExtra('compra');
   setv('compra-id-consulta',''); setv('compra-fbc',''); setv('compra-fbp','');
@@ -3561,7 +3582,7 @@ function getItemsFromTable(tbodyId){
 //  NUEVO SERVICIO
 // ══════════════════════════════════════════════
 function openNuevoServicio(){
-  if(!S.currentClienteId){ showToast('Guardá o cargá un cliente primero','error'); return; }
+  if(!S.currentClienteId){ showToast('📝 Nota sin cliente — guardala con "Borrador" y después asignala a la ficha','info'); }
   if(S.stockApiUrl){ actualizarListadoStock(true); }
   const id='SV'+Date.now();
   setv('servicio-id-badge', id);
@@ -3577,6 +3598,7 @@ function openNuevoServicio(){
   document.getElementById('comp-body').innerHTML='';
   document.getElementById('serv-items-body').innerHTML='';
   document.getElementById('modal-servicio').removeAttribute('data-editing');
+  document.getElementById('modal-servicio').removeAttribute('data-draft');
   resetRetiraEnvio('serv');
   resetPagosExtra('serv');
   setv('serv-id-consulta',''); setv('serv-fbc',''); setv('serv-fbp','');
@@ -3651,6 +3673,10 @@ function guardarCompra(imprimir){
   const id=v('compra-id-badge');
   const items=getItemsFromTable('compra-items-body');
   if(!items.length){ showToast('Agregá al menos un ítem','error'); return; }
+  if(!S.currentClienteId){ showToast('Esta nota no tiene cliente. Guardala con "📝 Borrador" o cargá un cliente antes de guardar la nota definitiva','error'); return; }
+  // Si venimos de retomar un borrador sin cliente, lo eliminamos al guardar la nota real.
+  const draftId = document.getElementById('modal-compra').getAttribute('data-draft');
+  if(draftId){ S.eventos = S.eventos.filter(e=>e.id!==draftId); document.getElementById('modal-compra').removeAttribute('data-draft'); }
   // Retira / Envio validation
   const envioData = getEnvioData('compra');
   const modoEnvio = document.getElementById('panel-envio-compra').style.display !== 'none';
@@ -3728,6 +3754,9 @@ function guardarCompra(imprimir){
 function guardarServicio(imprimir){
   const id=v('servicio-id-badge');
   const items=getItemsFromTable('serv-items-body');
+  if(!S.currentClienteId){ showToast('Esta nota no tiene cliente. Guardala con "📝 Borrador" o cargá un cliente antes de guardar la nota definitiva','error'); return; }
+  const draftIdS = document.getElementById('modal-servicio').getAttribute('data-draft');
+  if(draftIdS){ S.eventos = S.eventos.filter(e=>e.id!==draftIdS); document.getElementById('modal-servicio').removeAttribute('data-draft'); }
   // Retira / Envio validation
   const envioDataS = getEnvioData('serv');
   const modoEnvioS = document.getElementById('panel-envio-serv').style.display !== 'none';
@@ -5313,24 +5342,121 @@ function mostrarConfirmarCierreBorrador(modalId, prefix){
 }
 
 function guardarBorrador(prefix){
-  if(!S.currentClienteId){ showToast('No hay cliente cargado','error'); return; }
   const isCom = prefix==='compra';
   const id = v(isCom?'compra-id-badge':'servicio-id-badge');
   const items = getItemsFromTable(isCom?'compra-items-body':'serv-items-body');
   const tipo = isCom?'COMPRA':'SERVICIO';
+  const sinCliente = !S.currentClienteId;
+  // Si estamos retomando un borrador existente (data-draft), lo eliminamos para
+  // reemplazarlo por esta versión actualizada y no duplicar.
+  const modalId = isCom?'modal-compra':'modal-servicio';
+  const retomandoId = document.getElementById(modalId)?.getAttribute('data-draft');
+  if(retomandoId){ S.eventos = S.eventos.filter(e=>e.id!==retomandoId); }
   const borradorData = {
     id, items, esBorrador:true,
     total: parseN(document.getElementById((isCom?'compra':'serv')+'-total').textContent),
     creadoPor: S.currentUser?.nombreCompleto||'Administrador',
   };
   S.eventos.push({
-    id, clienteId:S.currentClienteId, tipo,
+    id, clienteId: S.currentClienteId||null, tipo,
     nombre: (items[0]?.desc||'Borrador')+(items.length>1?` +${items.length-1}`:''),
     fecha:hoy(), timestamp:ahoraTimestamp(),
-    esBorrador:true, data:borradorData
+    esBorrador:true, sinCliente, data:borradorData
   });
-  saveS(); renderHistorial(); renderComprobantes();
-  showToast('📝 Borrador guardado');
+  if(document.getElementById(modalId)) document.getElementById(modalId).removeAttribute('data-draft');
+  saveS(); renderHistorial(); renderComprobantes(); renderBorradoresSinCliente();
+  showToast(sinCliente ? '📝 Borrador sin cliente guardado — asignalo a la ficha cuando tengas los datos' : '📝 Borrador guardado');
+}
+
+// ══════════════════════════════════════════════
+//  BORRADORES SIN CLIENTE
+// ══════════════════════════════════════════════
+function getBorradoresSinCliente(){
+  return S.eventos.filter(e=>e.esBorrador && (e.sinCliente || !e.clienteId));
+}
+
+function renderBorradoresSinCliente(){
+  const badge = document.getElementById('borradores-sc-count');
+  if(!badge) return;
+  const n = getBorradoresSinCliente().length;
+  badge.textContent = n;
+  badge.style.display = n>0 ? '' : 'none';
+}
+
+function openBorradoresSinCliente(){
+  renderListaBorradoresSinCliente();
+  openModal('modal-borradores-sc');
+}
+
+function renderListaBorradoresSinCliente(){
+  const list = document.getElementById('borradores-sc-list');
+  const estado = document.getElementById('borradores-sc-estado-cliente');
+  if(!list) return;
+  const borradores = getBorradoresSinCliente().slice().reverse();
+  const cli = S.currentClienteId ? S.clientes.find(c=>c.id===S.currentClienteId) : null;
+  if(estado){
+    estado.innerHTML = cli
+      ? `✅ Cliente cargado: <strong>${cli.nombre||cli.firstName||''} ${cli.lastName||''}</strong> — podés asignar un borrador a esta ficha.`
+      : `⚠️ No hay cliente cargado. Para <strong>asignar</strong> un borrador, primero cargá o creá la ficha del cliente. Igual podés <strong>retomar</strong> para seguir editando.`;
+    estado.style.color = cli ? 'var(--green,#27ae60)' : 'var(--accent)';
+  }
+  if(!borradores.length){
+    list.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📝</div><div class="empty-state-text">No hay borradores sin cliente</div></div>';
+    return;
+  }
+  list.innerHTML = borradores.map(e=>{
+    const tipoLabel = e.tipo==='COMPRA'?'🛒 Compra':'🔧 Servicio';
+    const total = e.data?.total ? '$'+fmtN(e.data.total) : '$0';
+    const asignarBtn = S.currentClienteId
+      ? `<button class="btn btn-success btn-sm" onclick="asignarBorradorACliente('${e.id}')">➡️ Asignar a este cliente</button>`
+      : `<button class="btn btn-sm" disabled style="opacity:.5;cursor:not-allowed;">➡️ Asignar (cargá un cliente)</button>`;
+    return `<div style="border:1px solid var(--border);border-radius:var(--radius);padding:10px;margin-bottom:8px;background:var(--bg3);">
+      <div style="font-weight:700;font-size:13px;">${tipoLabel} · ${e.nombre}</div>
+      <div style="font-size:11px;color:var(--text3);font-family:var(--font-mono,monospace);margin:3px 0 8px;">${e.fecha}${e.timestamp?' '+e.timestamp:''} · Total: ${total} · ID: ${e.id}</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <button class="btn btn-primary btn-sm" onclick="retomarBorrador('${e.id}')">✏️ Retomar</button>
+        ${asignarBtn}
+        <button class="btn btn-ghost btn-sm" onclick="eliminarBorradorSinCliente('${e.id}')">🗑️ Eliminar</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function retomarBorrador(id){
+  const ev = S.eventos.find(e=>e.id===id);
+  if(!ev){ showToast('Borrador no encontrado','error'); return; }
+  closeModal('modal-borradores-sc');
+  // Reusa el reconstructor de la nota; marca data-draft para reemplazar al re-guardar.
+  if(ev.tipo==='COMPRA'){
+    abrirEditarCompra(ev);
+    document.getElementById('modal-compra').removeAttribute('data-editing');
+    document.getElementById('modal-compra').setAttribute('data-draft', id);
+  } else if(ev.tipo==='SERVICIO'){
+    abrirEditarServicio(ev);
+    document.getElementById('modal-servicio').removeAttribute('data-editing');
+    document.getElementById('modal-servicio').setAttribute('data-draft', id);
+  }
+}
+
+function asignarBorradorACliente(id){
+  if(!S.currentClienteId){ showToast('Cargá o creá un cliente primero','error'); return; }
+  const ev = S.eventos.find(e=>e.id===id);
+  if(!ev){ showToast('Borrador no encontrado','error'); return; }
+  ev.clienteId = S.currentClienteId;
+  ev.sinCliente = false;
+  const cli = S.clientes.find(c=>c.id===S.currentClienteId);
+  saveS(); renderHistorial(); renderComprobantes(); renderBorradoresSinCliente();
+  renderListaBorradoresSinCliente();
+  showToast(`✅ Borrador asignado a ${cli?.nombre||'la ficha'} — ya aparece en su historial`);
+}
+
+function eliminarBorradorSinCliente(id){
+  mostrarConfirmarAccion('🗑️ ¿Eliminar borrador?','Se eliminará este borrador sin cliente. No se puede deshacer.',()=>{
+    S.eventos = S.eventos.filter(e=>e.id!==id);
+    saveS(); renderHistorial(); renderComprobantes(); renderBorradoresSinCliente();
+    renderListaBorradoresSinCliente();
+    showToast('Borrador eliminado');
+  }, false);
 }
 
 function renderBalanceHistorial(){
