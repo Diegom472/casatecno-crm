@@ -4477,16 +4477,11 @@ async function dispararEventoPurchase(eventData, clienteData, prefix){
   // Valor y moneda a reportar según configuración
   const valorReportado = moneda==='ARS' ? parseFloat(totalARS.toFixed(2)) : parseFloat((totalARS/cotiz).toFixed(2));
   const currencyReportada = moneda==='ARS' ? 'ARS' : 'USD';
-  // Determinar tipo de evento según umbrales
+  // Lead y QualifiedLead se disparan SIEMPRE, en cualquier rango de precio.
+  // Purchase se dispara solo si el total alcanza el monto mínimo configurado
+  // (si minPurchase es 0 o está vacío, Purchase también se dispara siempre).
   const minPurchase = parseFloat(cfg.minPurchase)||0;
-  const minLead     = parseFloat(cfg.minLead)||0;
-  let eventName = 'Purchase'; // default
-  if(minPurchase>0 || minLead>0){
-    if(totalARS >= minPurchase && minPurchase>0){ eventName='Purchase'; }
-    else if(totalARS >= minLead && minLead>0){ eventName='Lead'; }
-    else if(minPurchase>0 && totalARS < minPurchase && minLead===0){ eventName='Purchase'; } // sin umbral de lead, todo es purchase
-    else { console.log('Meta: nota por debajo del umbral mínimo, no se envía evento. Total:', totalARS); showToast('ℹ️ Nota por debajo del umbral — no se envió evento a Meta'); return; }
-  }
+  const enviarPurchase = (minPurchase<=0) || (totalARS >= minPurchase);
   const leadId   = document.getElementById(prefix+'-id-consulta').value.trim();
   const fbc      = document.getElementById(prefix+'-fbc').value.trim();
   const fbp      = document.getElementById(prefix+'-fbp').value.trim();
