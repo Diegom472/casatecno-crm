@@ -856,11 +856,12 @@ textarea.form-input{resize:vertical;min-height:60px;}
           </div>
           <div class="form-group">
             <label class="form-label">Monto mínimo para Purchase (AR$)</label>
-            <input class="form-input" id="meta-min-purchase" type="text" placeholder="Ej: 100000" oninput="this.value=this.value.replace(/[^0-9]/g,'')?parseInt(this.value.replace(/[^0-9]/g,'')).toLocaleString('es-AR'):''">
+            <input class="form-input" id="meta-min-purchase" type="text" placeholder="Ej: 100000 (vacío = Purchase siempre)" oninput="this.value=this.value.replace(/[^0-9]/g,'')?parseInt(this.value.replace(/[^0-9]/g,'')).toLocaleString('es-AR'):''">
+            <div style="font-size:11px;color:var(--text3);margin-top:3px;">Lead y QualifiedLead se envían SIEMPRE. Purchase solo si el total alcanza este monto (vacío o 0 = Purchase siempre).</div>
           </div>
           <div class="form-group">
-            <label class="form-label">Monto mínimo para Lead (AR$)</label>
-            <input class="form-input" id="meta-min-lead" type="text" placeholder="Ej: 10000" oninput="this.value=this.value.replace(/[^0-9]/g,'')?parseInt(this.value.replace(/[^0-9]/g,'')).toLocaleString('es-AR'):''">
+            <label class="form-label">Monto mínimo para Lead (AR$) <span style="font-weight:400;color:var(--text3);">— sin uso</span></label>
+            <input class="form-input" id="meta-min-lead" type="text" placeholder="(Lead se envía siempre)" oninput="this.value=this.value.replace(/[^0-9]/g,'')?parseInt(this.value.replace(/[^0-9]/g,'')).toLocaleString('es-AR'):''">
           </div>
         </div>
         <div class="notice" style="margin-top:10px;font-size:11px;">
@@ -4173,16 +4174,9 @@ async function enviarEventoDesdeNota(ev, cliente){
   const totalARS = parseFloat(ev.data?.total)||0;
   const valorReportado = moneda==='ARS' ? parseFloat(totalARS.toFixed(2)) : parseFloat((totalARS/cotiz).toFixed(2));
   const currencyReportada = moneda==='ARS' ? 'ARS' : 'USD';
-  // Umbrales
+  // Lead y QualifiedLead SIEMPRE; Purchase solo si alcanza el monto mínimo.
   const minPurchase = parseFloat(cfg.minPurchase)||0;
-  const minLead     = parseFloat(cfg.minLead)||0;
-  let eventName = 'Purchase';
-  if(minPurchase>0 || minLead>0){
-    if(totalARS >= minPurchase && minPurchase>0){ eventName='Purchase'; }
-    else if(totalARS >= minLead && minLead>0){ eventName='Lead'; }
-    else if(minPurchase>0 && minLead===0){ eventName='Purchase'; }
-    else { return {ok:false, motivo:'bajo umbral'}; }
-  }
+  const enviarPurchase = (minPurchase<=0) || (totalARS >= minPurchase);
   // Datos guardados en la nota
   const d = ev.data||{};
   const leadId   = d.idConsulta || '';
@@ -4228,23 +4222,29 @@ async function enviarEventoDesdeNota(ev, cliente){
     user_data = { ...idData,
       ...(fbc?{fbc}:{}), ...(fbp?{fbp}:{}), ...(clientIp?{client_ip_address:clientIp}:{}), ...(userAgent?{client_user_agent:userAgent}:{}) };
   }
-  const mainEvent = {
-    event_name: eventName, event_time: eventTime,
-    event_id: `${orderId}-${eventName.toLowerCase()}-${eventTime}`,
+  const baseEvent = {
+    event_time: eventTime,
     action_source: esCTWA ? 'business_messaging' : 'other',
     ...(esCTWA ? { messaging_channel:'whatsapp' } : {}),
     user_data,
     custom_data:{ content_name: ev.nombre||'', content_ids:[orderId], content_type:'product', order_id:orderId, value:valorReportado, currency:currencyReportada },
   };
-  const qualifiedEvent = { ...mainEvent, event_name:'QualifiedLead', event_id:`${orderId}-qualifiedlead-${eventTime}` };
-  const payload = { data:[ mainEvent, qualifiedEvent ] };
+  const eventos = [
+    { ...baseEvent, event_name:'Lead',          event_id:`${orderId}-lead-${eventTime}` },
+    { ...baseEvent, event_name:'QualifiedLead', event_id:`${orderId}-qualifiedlead-${eventTime}` },
+  ];
+  if(enviarPurchase){
+    eventos.push({ ...baseEvent, event_name:'Purchase', event_id:`${orderId}-purchase-${eventTime}` });
+  }
+  const nombresEnviados = eventos.map(e=>e.event_name).join(' + ');
+  const payload = { data: eventos };
   if(cfg.testCode) payload.test_event_code = cfg.testCode;
   const CAPI_URL = `https://graph.facebook.com/v19.0/${cfg.pixelId}/events?access_token=${cfg.token}`;
   try{
     const res = await fetch(CAPI_URL, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
     const json = await res.json();
     if(res.ok && json.events_received>0){
-      return {ok:true, eventName};
+      return {ok:true, eventName:nombresEnviados};
     } else {
       console.error('Meta reenvío rechazó nota', ev.id, '→', json?.error?.message||json, '| payload:', JSON.stringify(payload));
       return {ok:false, motivo:'rechazado', json};
@@ -4533,10 +4533,9 @@ async function dispararEventoPurchase(eventData, clienteData, prefix){
       ...(userAgent ? {client_user_agent:userAgent} : {}),
     };
   }
-  const mainEvent = {
-    event_name:    eventName,
+  // Datos comunes a todos los eventos
+  const baseEvent = {
     event_time:    eventTime,
-    event_id:      `${orderId}-${eventName.toLowerCase()}-${eventTime}`,
     action_source: esCTWA ? 'business_messaging' : 'other',
     ...(esCTWA ? { messaging_channel: 'whatsapp' } : {}),
     user_data,
@@ -4551,13 +4550,16 @@ async function dispararEventoPurchase(eventData, clienteData, prefix){
       ...(campaign ? {campaign_name:campaign}  : {}),
     },
   };
-  // Evento adicional QualifiedLead con los mismos datos
-  const qualifiedEvent = {
-    ...mainEvent,
-    event_name: 'QualifiedLead',
-    event_id:   `${orderId}-qualifiedlead-${eventTime}`,
-  };
-  const payload = { data:[ mainEvent, qualifiedEvent ] };
+  // Lead y QualifiedLead SIEMPRE; Purchase solo si alcanza el monto mínimo.
+  const eventos = [
+    { ...baseEvent, event_name:'Lead',          event_id:`${orderId}-lead-${eventTime}` },
+    { ...baseEvent, event_name:'QualifiedLead', event_id:`${orderId}-qualifiedlead-${eventTime}` },
+  ];
+  if(enviarPurchase){
+    eventos.push({ ...baseEvent, event_name:'Purchase', event_id:`${orderId}-purchase-${eventTime}` });
+  }
+  const nombresEnviados = eventos.map(e=>e.event_name).join(' + ');
+  const payload = { data: eventos };
   if(cfg.testCode) payload.test_event_code = cfg.testCode;
   const CAPI_URL = `https://graph.facebook.com/v19.0/${cfg.pixelId}/events?access_token=${cfg.token}`;
   try {
@@ -4565,8 +4567,8 @@ async function dispararEventoPurchase(eventData, clienteData, prefix){
     const json = await res.json();
     if(res.ok && json.events_received>0){
       const canal = esCTWA ? 'WhatsApp/CTWA' : 'Web';
-      console.log(`✅ Meta ${eventName} + QualifiedLead (${canal}) enviados — ID:`, orderId, `| ${currencyReportada}:`, valorReportado);
-      showToast(`📊 ${eventName} + QualifiedLead enviados a Meta (${canal}) — ${currencyReportada} ${fmtN(valorReportado)}`);
+      console.log(`✅ Meta ${nombresEnviados} (${canal}) enviados — ID:`, orderId, `| ${currencyReportada}:`, valorReportado);
+      showToast(`📊 ${nombresEnviados} enviados a Meta (${canal}) — ${currencyReportada} ${fmtN(valorReportado)}`);
     } else {
       console.error('Meta API error:', json);
       showToast('⚠️ El evento se guardó pero Meta devolvió error. Revisá la consola.','error');
