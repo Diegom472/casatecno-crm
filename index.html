@@ -474,6 +474,7 @@ textarea.form-input{resize:vertical;min-height:60px;}
         <button class="btn btn-secondary btn-sm" onclick="openNuevoServicio()">🔧 Nuevo Servicio</button>
         <button class="btn btn-sm" style="background:#f39c12;color:#fff;" onclick="openPedidoListo()">✅ Pedido Listo</button>
         <button class="btn btn-secondary btn-sm" onclick="goTo('califica')">⭐ Calificación</button>
+        <button class="btn btn-secondary btn-sm" onclick="openBorradoresSinCliente()">📝 Borradores <span class="badge" id="borradores-sc-count" style="display:none;">0</span></button>
       </div>
       <!-- Grupo 2: Documentos -->
       <div style="display:flex;gap:6px;flex-wrap:wrap;padding:6px 10px;background:var(--bg3);border-radius:var(--radius);border:1px solid var(--border);">
@@ -919,25 +920,28 @@ textarea.form-input{resize:vertical;min-height:60px;}
     <!-- ═══ NOTIFICACIONES ═══ -->
     <div class="admin-card">
       <div class="admin-card-header" onclick="toggleAdminCard('notif')">
-        <span class="admin-card-title">🔔 Notificaciones — Textos de Email</span>
+        <span class="admin-card-title">🔔 Notificaciones — Textos de Email y WhatsApp</span>
         <span class="admin-card-arrow" id="arrow-notif">▼</span>
       </div>
       <div class="admin-card-body" id="body-notif">
         <div class="notice"><strong>Usá:</strong> <code>{{nombre}}</code>, <code>{{negocio}}</code>, <code>{{id}}</code>, <code>{{total}}</code></div>
         <div class="admin-section" style="margin-bottom:16px;margin-top:12px;">
           <div class="admin-section-title">📋 Nota de Pedido / Compra</div>
-          <div class="form-group" style="margin-bottom:8px;"><label class="form-label">Asunto</label><input class="form-input" id="notif-compra-asunto" type="text" placeholder="Tu pedido {{id}} está confirmado — {{negocio}}"></div>
-          <div class="form-group"><label class="form-label">Cuerpo</label><textarea class="form-input" id="notif-compra-body" rows="3"></textarea></div>
+          <div class="form-group" style="margin-bottom:8px;"><label class="form-label">📧 Asunto (Email)</label><input class="form-input" id="notif-compra-asunto" type="text" placeholder="Tu pedido {{id}} está confirmado — {{negocio}}"></div>
+          <div class="form-group" style="margin-bottom:8px;"><label class="form-label">📧 Cuerpo (Email)</label><textarea class="form-input" id="notif-compra-body" rows="3"></textarea></div>
+          <div class="form-group"><label class="form-label">💬 Mensaje WhatsApp</label><textarea class="form-input" id="notif-compra-wsp" rows="3" placeholder="Hola {{nombre}}, tu Nota de Pedido {{id}} por ${{total}} fue registrada en {{negocio}}. ¡Gracias por tu compra!"></textarea></div>
         </div>
         <div class="admin-section" style="margin-bottom:16px;">
           <div class="admin-section-title">🔧 Nota de Servicio</div>
-          <div class="form-group" style="margin-bottom:8px;"><label class="form-label">Asunto</label><input class="form-input" id="notif-serv-asunto" type="text" placeholder="Tu servicio {{id}} fue registrado — {{negocio}}"></div>
-          <div class="form-group"><label class="form-label">Cuerpo</label><textarea class="form-input" id="notif-serv-body" rows="3"></textarea></div>
+          <div class="form-group" style="margin-bottom:8px;"><label class="form-label">📧 Asunto (Email)</label><input class="form-input" id="notif-serv-asunto" type="text" placeholder="Tu servicio {{id}} fue registrado — {{negocio}}"></div>
+          <div class="form-group" style="margin-bottom:8px;"><label class="form-label">📧 Cuerpo (Email)</label><textarea class="form-input" id="notif-serv-body" rows="3"></textarea></div>
+          <div class="form-group"><label class="form-label">💬 Mensaje WhatsApp</label><textarea class="form-input" id="notif-serv-wsp" rows="3" placeholder="Hola {{nombre}}, recibimos tu equipo. Servicio ID: {{id}}. Te avisamos cuando esté listo. — {{negocio}}"></textarea></div>
         </div>
         <div class="admin-section">
           <div class="admin-section-title">✅ Pedido Listo</div>
-          <div class="form-group" style="margin-bottom:8px;"><label class="form-label">Asunto</label><input class="form-input" id="notif-listo-asunto" type="text" placeholder="Tu pedido {{id}} está listo — {{negocio}}"></div>
-          <div class="form-group"><label class="form-label">Cuerpo</label><textarea class="form-input" id="notif-listo-body" rows="3"></textarea></div>
+          <div class="form-group" style="margin-bottom:8px;"><label class="form-label">📧 Asunto (Email)</label><input class="form-input" id="notif-listo-asunto" type="text" placeholder="Tu pedido {{id}} está listo — {{negocio}}"></div>
+          <div class="form-group" style="margin-bottom:8px;"><label class="form-label">📧 Cuerpo (Email)</label><textarea class="form-input" id="notif-listo-body" rows="3"></textarea></div>
+          <div class="form-group"><label class="form-label">💬 Mensaje WhatsApp</label><textarea class="form-input" id="notif-listo-wsp" rows="3" placeholder="Hola {{nombre}}, tu pedido/servicio {{id}} ya está listo para retirar en {{negocio}}. ¡Te esperamos!"></textarea></div>
         </div>
         <div class="btn-row"><button class="btn btn-primary btn-sm" onclick="guardarNotificaciones()">💾 Guardar textos</button></div>
       </div>
@@ -1298,8 +1302,16 @@ textarea.form-input{resize:vertical;min-height:60px;}
   <div class="btn-row">
    <button class="btn btn-success" onclick="guardarCompra(false)">💾 Guardar</button>
    <button class="btn btn-primary" onclick="guardarCompra(true)">🖨️ Guardar e Imprimir</button>
-   <button class="btn btn-secondary" onclick="guardarBorrador('compra')">📝 Borrador</button>
+   <button class="btn btn-secondary" onclick="guardarBorradorYCerrar('compra')">📝 Guardar como borrador</button>
   </div>
+ </div>
+</div>
+<!-- MODAL: BORRADORES SIN CLIENTE -->
+<div class="modal-overlay" id="modal-borradores-sc">
+ <div class="modal" style="max-width:540px;">
+  <div class="modal-title">📝 Borradores<button class="modal-close" onclick="closeModal('modal-borradores-sc')">✕</button></div>
+  <div id="borradores-sc-estado" style="font-size:12px;color:var(--text2);margin-bottom:10px;"></div>
+  <div id="borradores-sc-list"></div>
  </div>
 </div>
 <div class="modal-overlay" id="modal-servicio">
@@ -1447,7 +1459,7 @@ textarea.form-input{resize:vertical;min-height:60px;}
   <div class="btn-row">
    <button class="btn btn-success" onclick="guardarServicio(false)">💾 Guardar</button>
    <button class="btn btn-primary" onclick="guardarServicio(true)">🖨️ Guardar e Imprimir</button>
-   <button class="btn btn-secondary" onclick="guardarBorrador('serv')">📝 Borrador</button>
+   <button class="btn btn-secondary" onclick="guardarBorradorYCerrar('serv')">📝 Guardar como borrador</button>
   </div>
  </div>
 </div>
@@ -2227,7 +2239,7 @@ function limpiarFicha(){
   document.getElementById('c-canal').value='';
   document.getElementById('c-doc-tipo').value='dni';
   toggleDocTipo();
-  renderHistorial(); renderComprobantes();
+  renderHistorial(); renderComprobantes(); renderBorradoresSinCliente();
 }
 
 function getClienteData(){
@@ -2537,6 +2549,7 @@ function editarEvento(id){
 
 function abrirEditarCompra(ev){
   const data=ev.data;
+  document.getElementById('modal-compra').removeAttribute('data-draft');
   const newId='NP'+Date.now();
   setv('compra-id-badge', newId);
   S.retiraCompra=1;
@@ -2581,6 +2594,7 @@ function abrirEditarCompra(ev){
 
 function abrirEditarServicio(ev){
   const data=ev.data;
+  document.getElementById('modal-servicio').removeAttribute('data-draft');
   const newId='SV'+Date.now();
   setv('servicio-id-badge', newId);
   S.retiraServ=1;
@@ -3120,8 +3134,10 @@ function guardarDocumento(){
 //  NUEVA COMPRA
 // ══════════════════════════════════════════════
 function openNuevaCompra(){
-  if(!S.currentClienteId){ showToast('Guardá o cargá un cliente primero','error'); return; }
+  if(!S.currentClienteId){ showToast('📝 Nota sin cliente — podés guardarla como borrador y asignarle la ficha después','info'); }
   if(S.stockApiUrl){ actualizarListadoStock(true); }
+  document.getElementById('modal-compra').removeAttribute('data-draft');
+  document.getElementById('modal-compra').removeAttribute('data-editing');
   const id='NP'+Date.now();
   setv('compra-id-badge', id);
   S.retiraCompra=1;
@@ -3569,8 +3585,10 @@ function getItemsFromTable(tbodyId){
 //  NUEVO SERVICIO
 // ══════════════════════════════════════════════
 function openNuevoServicio(){
-  if(!S.currentClienteId){ showToast('Guardá o cargá un cliente primero','error'); return; }
+  if(!S.currentClienteId){ showToast('📝 Nota sin cliente — podés guardarla como borrador y asignarle la ficha después','info'); }
   if(S.stockApiUrl){ actualizarListadoStock(true); }
+  document.getElementById('modal-servicio').removeAttribute('data-draft');
+  document.getElementById('modal-servicio').removeAttribute('data-editing');
   const id='SV'+Date.now();
   setv('servicio-id-badge', id);
   S.retiraServ=1;
@@ -3659,6 +3677,9 @@ function guardarCompra(imprimir){
   const id=v('compra-id-badge');
   const items=getItemsFromTable('compra-items-body');
   if(!items.length){ showToast('Agregá al menos un ítem','error'); return; }
+  if(!S.currentClienteId){ showToast('Esta nota no tiene cliente. Guardala como borrador o cargá un cliente antes de guardar la nota definitiva','error'); return; }
+  const draftC=document.getElementById('modal-compra').getAttribute('data-draft');
+  if(draftC){ S.eventos=S.eventos.filter(e=>e.id!==draftC); document.getElementById('modal-compra').removeAttribute('data-draft'); }
   // Retira / Envio validation
   const envioData = getEnvioData('compra');
   const modoEnvio = document.getElementById('panel-envio-compra').style.display !== 'none';
@@ -3736,6 +3757,9 @@ function guardarCompra(imprimir){
 function guardarServicio(imprimir){
   const id=v('servicio-id-badge');
   const items=getItemsFromTable('serv-items-body');
+  if(!S.currentClienteId){ showToast('Esta nota no tiene cliente. Guardala como borrador o cargá un cliente antes de guardar la nota definitiva','error'); return; }
+  const draftS=document.getElementById('modal-servicio').getAttribute('data-draft');
+  if(draftS){ S.eventos=S.eventos.filter(e=>e.id!==draftS); document.getElementById('modal-servicio').removeAttribute('data-draft'); }
   // Retira / Envio validation
   const envioDataS = getEnvioData('serv');
   const modoEnvioS = document.getElementById('panel-envio-serv').style.display !== 'none';
@@ -5321,7 +5345,6 @@ function mostrarConfirmarCierreBorrador(modalId, prefix){
 }
 
 function guardarBorrador(prefix){
-  if(!S.currentClienteId){ showToast('No hay cliente cargado','error'); return; }
   const isCom = prefix==='compra';
   const id = v(isCom?'compra-id-badge':'servicio-id-badge');
   const items = getItemsFromTable(isCom?'compra-items-body':'serv-items-body');
@@ -5351,14 +5374,102 @@ function guardarBorrador(prefix){
     leadOrigen: v(p+'-lead-origen').trim(),
     creadoPor: S.currentUser?.nombreCompleto||'Administrador',
   };
-  S.eventos.push({
-    id, clienteId:S.currentClienteId, tipo,
-    nombre: (items[0]?.desc||'Borrador')+(items.length>1?` +${items.length-1}`:''),
+  const sinCliente = !S.currentClienteId;
+  // Si estamos retomando un borrador existente, lo reemplazamos (no duplicamos)
+  const modalId = isCom?'modal-compra':'modal-servicio';
+  const draftPrev = document.getElementById(modalId)?.getAttribute('data-draft');
+  if(draftPrev){ S.eventos = S.eventos.filter(e=>e.id!==draftPrev); document.getElementById(modalId).removeAttribute('data-draft'); }
+  const evento = {
+    id, clienteId: S.currentClienteId||null, tipo, sinCliente,
+    nombre: (items[0]?.desc||comps[0]?.componente||'Borrador')+(items.length>1?` +${items.length-1}`:''),
     fecha:hoy(), timestamp:ahoraTimestamp(),
     esBorrador:true, data:borradorData
-  });
-  saveS(); renderHistorial(); renderComprobantes();
-  showToast('📝 Borrador guardado');
+  };
+  S.eventos.push(evento);
+  saveS(); renderHistorial(); renderComprobantes(); renderBorradoresSinCliente();
+  showToast(sinCliente ? '📝 Borrador sin cliente guardado — lo encontrás en el botón Borradores' : '📝 Borrador guardado');
+  return evento;
+}
+
+// Guarda el borrador y cierra la nota
+function guardarBorradorYCerrar(prefix){
+  const ev = guardarBorrador(prefix);
+  if(ev){ closeModal(prefix==='compra'?'modal-compra':'modal-servicio'); }
+}
+
+// ══════════════════════════════════════════════
+//  BORRADORES SIN CLIENTE
+// ══════════════════════════════════════════════
+function getBorradoresSinCliente(){
+  return S.eventos.filter(e=>e.esBorrador && (e.sinCliente || !e.clienteId));
+}
+function renderBorradoresSinCliente(){
+  const badge=document.getElementById('borradores-sc-count'); if(!badge) return;
+  const n=getBorradoresSinCliente().length;
+  badge.textContent=n; badge.style.display=n>0?'':'none';
+}
+function openBorradoresSinCliente(){
+  renderListaBorradoresSinCliente();
+  openModal('modal-borradores-sc');
+}
+function renderListaBorradoresSinCliente(){
+  const list=document.getElementById('borradores-sc-list');
+  const estado=document.getElementById('borradores-sc-estado'); if(!list) return;
+  const borradores=getBorradoresSinCliente().slice().reverse();
+  const cli=S.currentClienteId?S.clientes.find(c=>c.id===S.currentClienteId):null;
+  if(estado){
+    estado.innerHTML = cli
+      ? `✅ Cliente cargado: <strong>${cli.nombre||''}</strong> — podés asignar un borrador a esta ficha.`
+      : `⚠️ Sin cliente cargado. Podés <strong>retomar</strong> para seguir editando. Para <strong>asignar</strong> a una ficha, cargá primero el cliente.`;
+  }
+  if(!borradores.length){ list.innerHTML='<div class="empty-state"><div class="empty-state-icon">📝</div><div class="empty-state-text">No hay borradores sin cliente</div></div>'; return; }
+  list.innerHTML=borradores.map(e=>{
+    const tipoLabel=e.tipo==='COMPRA'?'🛒 Compra':'🔧 Servicio';
+    const total=e.data?.total?'$'+fmtN(e.data.total):'$0';
+    const asignar=S.currentClienteId
+      ? `<button class="btn btn-success btn-sm" onclick="asignarBorradorACliente('${e.id}')">➡️ Asignar a este cliente</button>`
+      : `<button class="btn btn-sm" disabled style="opacity:.5;">➡️ Asignar (cargá un cliente)</button>`;
+    return `<div style="border:1px solid var(--border);border-radius:var(--radius);padding:10px;margin-bottom:8px;background:var(--bg3);">
+      <div style="font-weight:700;font-size:13px;">${tipoLabel} · ${e.nombre}</div>
+      <div style="font-size:11px;color:var(--text3);margin:3px 0 8px;">${e.fecha}${e.timestamp?' '+e.timestamp:''} · Total: ${total} · ID: ${e.id}</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;">
+        <button class="btn btn-primary btn-sm" onclick="retomarBorrador('${e.id}')">✏️ Retomar</button>
+        <button class="btn btn-secondary btn-sm" onclick="imprimirBorrador('${e.id}')">🖨️ Imprimir</button>
+        ${asignar}
+        <button class="btn btn-ghost btn-sm" onclick="eliminarBorradorSC('${e.id}')">🗑️</button>
+      </div></div>`;
+  }).join('');
+}
+function retomarBorrador(id){
+  const ev=S.eventos.find(e=>e.id===id); if(!ev){ showToast('Borrador no encontrado','error'); return; }
+  closeModal('modal-borradores-sc');
+  if(ev.tipo==='COMPRA'){
+    abrirEditarCompra(ev);
+    document.getElementById('modal-compra').removeAttribute('data-editing');
+    document.getElementById('modal-compra').setAttribute('data-draft', id);
+  } else {
+    abrirEditarServicio(ev);
+    document.getElementById('modal-servicio').removeAttribute('data-editing');
+    document.getElementById('modal-servicio').setAttribute('data-draft', id);
+  }
+}
+function asignarBorradorACliente(id){
+  if(!S.currentClienteId){ showToast('Cargá un cliente primero','error'); return; }
+  const ev=S.eventos.find(e=>e.id===id); if(!ev) return;
+  ev.clienteId=S.currentClienteId; ev.sinCliente=false;
+  const cli=S.clientes.find(c=>c.id===S.currentClienteId);
+  saveS(); renderHistorial(); renderComprobantes(); renderBorradoresSinCliente(); renderListaBorradoresSinCliente();
+  showToast(`✅ Borrador asignado a ${cli?.nombre||'la ficha'}`);
+}
+function eliminarBorradorSC(id){
+  S.eventos=S.eventos.filter(e=>e.id!==id);
+  saveS(); renderHistorial(); renderComprobantes(); renderBorradoresSinCliente(); renderListaBorradoresSinCliente();
+  showToast('Borrador eliminado');
+}
+function imprimirBorrador(id){
+  const ev=S.eventos.find(e=>e.id===id); if(!ev){ showToast('Borrador no encontrado','error'); return; }
+  const cliente = ev.clienteId ? S.clientes.find(c=>c.id===ev.clienteId) : null;
+  imprimirComprobante(ev.tipo, ev.id, cliente, ev.data, null);
 }
 
 function renderBalanceHistorial(){
@@ -6102,13 +6213,13 @@ function enviarWhatsApp(eventoId){
   const vars = { nombre:cliente?.nombre||'', id:ev.id, total:fmtN(ev.data?.total||0), negocio:S.negocio.razon };
   const repl = (s)=>(s||'').replace(/\{\{(\w+)\}\}/g,(_,k)=>vars[k]||'');
   if(ev.tipo==='COMPRA'){
-    mensaje = repl(notif.compraCuerpo||'Hola {{nombre}}, tu Nota de Pedido {{id}} por ${{total}} fue registrada en {{negocio}}. Gracias por tu compra!');
+    mensaje = repl(notif.compraWsp||notif.compraCuerpo||'Hola {{nombre}}, tu Nota de Pedido {{id}} por ${{total}} fue registrada en {{negocio}}. Gracias por tu compra!');
   } else if(ev.tipo==='SERVICIO'){
-    mensaje = repl(notif.servCuerpo||'Hola {{nombre}}, recibimos tu equipo. Servicio ID: {{id}}. Te avisamos cuando esté listo. — {{negocio}}');
+    mensaje = repl(notif.servWsp||notif.servCuerpo||'Hola {{nombre}}, recibimos tu equipo. Servicio ID: {{id}}. Te avisamos cuando esté listo. — {{negocio}}');
   } else if(ev.tipo==='PEDIDO_LISTO'){
     const notaRef = S.eventos.find(e=>e.id===ev.data?.notaId);
     vars.id = notaRef?.id || ev.data?.notaId || ev.id;
-    mensaje = repl(notif.listoCuerpo||'Hola {{nombre}}, tu pedido/servicio {{id}} ya está listo para retirar en {{negocio}}. Te esperamos!');
+    mensaje = repl(notif.listoWsp||notif.listoCuerpo||'Hola {{nombre}}, tu pedido/servicio {{id}} ya está listo para retirar en {{negocio}}. Te esperamos!');
   } else {
     mensaje = `Hola ${cliente?.nombre||''}, te enviamos un documento de ${S.negocio.razon}.`;
   }
@@ -6145,6 +6256,9 @@ function guardarNotificaciones(){
   S.notificaciones.servCuerpo   = document.getElementById('notif-serv-body').value;
   S.notificaciones.listoAsunto  = document.getElementById('notif-listo-asunto').value;
   S.notificaciones.listoCuerpo  = document.getElementById('notif-listo-body').value;
+  S.notificaciones.compraWsp    = document.getElementById('notif-compra-wsp').value;
+  S.notificaciones.servWsp      = document.getElementById('notif-serv-wsp').value;
+  S.notificaciones.listoWsp     = document.getElementById('notif-listo-wsp').value;
   saveS(); showToast('✅ Textos de notificaciones guardados');
 }
 
@@ -6156,6 +6270,9 @@ function cargarNotificacionesAdmin(){
   setv('notif-serv-body',     notif.servCuerpo||'');
   setv('notif-listo-asunto',  notif.listoAsunto||'');
   setv('notif-listo-body',    notif.listoCuerpo||'');
+  setv('notif-compra-wsp',    notif.compraWsp||'');
+  setv('notif-serv-wsp',      notif.servWsp||'');
+  setv('notif-listo-wsp',     notif.listoWsp||'');
 }
 // ══════════════════════════════════════════════
 function logUserEvent(targetUserId, tipo, descripcion){
